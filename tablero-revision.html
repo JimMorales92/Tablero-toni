@@ -190,6 +190,22 @@ textarea.copy-text{
 .tc-type{font-size:11.5px;color:var(--text-dim);border:1px solid var(--line);border-radius:6px;padding:2px 8px;}
 .tc-text{font-size:14px;color:var(--text);}
 
+.btn-record{
+  background:var(--panel-raised);
+  border:1px solid var(--brass);
+  color:var(--brass);
+  padding:9px 16px;
+  border-radius:8px;
+  font-size:13.5px;
+  font-weight:600;
+}
+.btn-record.recording{
+  background:var(--red-flag);
+  border-color:var(--red-flag);
+  color:#241D14;
+}
+.audio-row{margin-bottom:10px;}
+
 .note-block{margin-bottom:22px;}
 .note-label{display:block;font-family:'Fraunces',serif;font-size:15px;color:var(--brass);margin-bottom:8px;}
 textarea.note-text{
@@ -318,6 +334,7 @@ async function load(){
     if(v.generalComment === undefined) v.generalComment = '';
     if(v.notesForToni === undefined) v.notesForToni = '';
     if(!Array.isArray(v.timestampComments)) v.timestampComments = [];
+    if(!Array.isArray(v.audioNotes)) v.audioNotes = [];
     if(!Array.isArray(v.scriptLines)) v.scriptLines = [];
   });
   if(videos.length && !activeId) activeId = videos[0].id;
@@ -399,7 +416,8 @@ function addVideo(){
     copyComment: '',
     generalComment: '',
     notesForToni: '',
-    timestampComments: []
+    timestampComments: [],
+    audioNotes: []
   };
   videos.push(video);
   activeId = video.id;
@@ -532,6 +550,22 @@ function render(){
       </div>
 
       <div class="copy-block">
+        <h2 class="section-title">Notas de audio</h2>
+        ${(v.audioNotes && v.audioNotes.length)
+          ? v.audioNotes.map(a => `
+            <div class="audio-row">
+              <iframe src="https://drive.google.com/file/d/${a.driveId}/preview" width="100%" height="80" allow="autoplay" style="border:0;border-radius:8px;"></iframe>
+            </div>
+          `).join('')
+          : '<p class="subtitle">Sin notas de audio todavía.</p>'
+        }
+        <button class="btn-record${isRecording && recordingVid===v.id ? ' recording' : ''}" id="record-btn-${v.id}" onclick="toggleRecording('${v.id}')">
+          ${isRecording && recordingVid===v.id ? '⏺ Detener y guardar' : '🎙 Grabar nota de audio'}
+        </button>
+        <span class="save-status" id="audio-status"></span>
+      </div>
+
+      <div class="copy-block">
         <h2 class="section-title">Comentarios generales</h2>
         <textarea class="copy-text" placeholder="Cualquier observación general sobre este video…" oninput="updateGeneralComment('${v.id}', this.value)">${escapeHtml(v.generalComment || '')}</textarea>
       </div>
@@ -616,6 +650,73 @@ function toggleTcStatus(vid, cid){
   const c = v.timestampComments.find(c=>c.id===cid);
   c.status = c.status==='resuelto' ? 'pendiente' : 'resuelto';
   save(vid); render();
+}
+
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let recordingVid = null;
+
+async function toggleRecording(vid){
+  if(isRecording && mediaRecorder && mediaRecorder.state === 'recording'){
+    mediaRecorder.stop();
+    return;
+  }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    recordingVid = vid;
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      uploadAudioNote(recordingVid, blob);
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    render();
+  }catch(e){
+    alert('No se pudo acceder al micrófono. Revisa los permisos del navegador para este sitio.');
+  }
+}
+
+function blobToBase64(blob){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function uploadAudioNote(vid, blob){
+  isRecording = false;
+  render();
+  const status = document.getElementById('audio-status');
+  if(status) status.textContent = 'Subiendo…';
+  try{
+    const base64 = await blobToBase64(blob);
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action: 'uploadAudio', audioBase64: base64, mimeType: 'audio/webm' })
+    });
+    const data = await res.json();
+    if(!data.driveId) throw new Error('sin driveId');
+    const v = videos.find(v=>v.id===vid);
+    if(!Array.isArray(v.audioNotes)) v.audioNotes = [];
+    v.audioNotes.push({ id: 'a'+Date.now(), driveId: data.driveId });
+    await save(vid);
+    render();
+    const status2 = document.getElementById('audio-status');
+    if(status2) status2.textContent = '✓ Nota guardada';
+    setTimeout(()=>{ const s = document.getElementById('audio-status'); if(s) s.textContent=''; }, 3000);
+  }catch(e){
+    console.error(e);
+    alert('No se pudo subir la nota de audio. Intenta de nuevo.');
+    render();
+  }
 }
 
 function escapeHtml(s){
