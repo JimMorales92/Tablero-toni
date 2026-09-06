@@ -28,6 +28,7 @@ body{
   transition:background .25s ease;
 }
 body.mode-corregir{background:#3A211A;}
+body.mode-aprobado{background:#1E2A1C;}
 
 .wrap{max-width:1240px;margin:0 auto;padding:24px 20px 60px;}
 
@@ -53,6 +54,27 @@ button{font-family:inherit;cursor:pointer;}
 .btn-add:hover{background:#DBB05C;}
 
 /* ---------- dashboard ---------- */
+.dash-bar{
+  display:flex;align-items:center;gap:14px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+.dash-toggle{
+  background:transparent;
+  border:1px solid var(--line);
+  color:var(--text-dim);
+  border-radius:7px;
+  padding:5px 11px;
+  font-size:12.5px;
+}
+.dash-toggle:hover{color:var(--brass);border-color:var(--brass-dim);}
+.dash-compact{display:flex;gap:14px;flex-wrap:wrap;}
+.dash-chip{
+  display:flex;align-items:center;gap:6px;
+  font-size:12.5px;color:var(--text-dim);
+}
+.dash-chip b{color:var(--text);font-weight:600;}
+
 .dash{
   display:grid;
   grid-template-columns:repeat(3,1fr);
@@ -104,6 +126,19 @@ button{font-family:inherit;cursor:pointer;}
 }
 .dash-dl.off{border-color:var(--line);color:var(--grey);cursor:default;}
 .dash-empty{font-size:12px;color:var(--grey);}
+.dash-dl-all{
+  margin-left:auto;
+  background:var(--panel-raised);
+  border:1px solid var(--green);
+  color:var(--green);
+  border-radius:6px;
+  font-size:10.5px;
+  padding:2px 8px;
+  letter-spacing:0;
+  text-transform:none;
+}
+.dash-dl-all:hover{background:var(--green);color:#1E2A1B;}
+.dash-head .dash-dl-all + .dash-count{margin-left:10px;}
 
 .tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:18px;border-bottom:1px solid var(--line);}
 .tab{
@@ -123,7 +158,7 @@ button{font-family:inherit;cursor:pointer;}
 /* ---------- two-column layout ---------- */
 .layout{
   display:grid;
-  grid-template-columns:minmax(300px,460px) minmax(0,1fr);
+  grid-template-columns:minmax(260px,360px) minmax(0,1fr);
   gap:20px;
   align-items:start;
 }
@@ -147,6 +182,14 @@ button{font-family:inherit;cursor:pointer;}
 .panel.mode-corregir textarea,
 .panel.mode-corregir .tc-time,
 .panel.mode-corregir .pill{background:#33201A;}
+.panel.mode-aprobado{
+  background:#22301F;
+  box-shadow:inset 0 0 0 2px var(--green);
+}
+.panel.mode-aprobado .copy-display,
+.panel.mode-aprobado textarea,
+.panel.mode-aprobado .tc-time,
+.panel.mode-aprobado .pill{background:#1C2719;}
 .empty{color:var(--text-dim);text-align:center;padding:60px 20px;}
 .empty p{margin:0 0 14px;}
 
@@ -162,10 +205,22 @@ button{font-family:inherit;cursor:pointer;}
   margin-bottom:12px;
 }
 .mode-corregir .correct-banner{display:block;}
+.approved-banner{
+  display:none;
+  background:var(--green);
+  border:none;
+  color:#16210F;
+  border-radius:8px;
+  padding:10px 14px;
+  font-size:13px;
+  font-weight:600;
+  margin-bottom:12px;
+}
+.mode-aprobado .approved-banner{display:block;}
 
 .video-frame{
   position:relative;
-  height:calc(100vh - 200px);
+  height:min(60vh, 560px);
   aspect-ratio:9/16;
   width:auto;
   max-width:100%;
@@ -346,6 +401,7 @@ textarea.note-text::placeholder{color:var(--grey);}
     padding:8px 0;
   }
   body.mode-corregir .col-video{background:#3A211A;}
+  body.mode-aprobado .col-video{background:#1E2A1C;}
   .col-review{max-height:none;overflow-y:visible;padding-right:0;}
   .video-frame{height:52vh;}
 }
@@ -447,6 +503,7 @@ const STATUSES = ['sin revisar','corregir','aprobado'];
 let videos = [];
 let activeId = null;
 let copyEditMode = false;
+let dashOpen = true;
 
 function statusColor(s){
   if(s==='sin revisar') return 'var(--grey)';
@@ -497,6 +554,11 @@ async function load(){
     if(!Array.isArray(v.timestampComments)) v.timestampComments = [];
     if(!Array.isArray(v.audioNotes)) v.audioNotes = [];
     v.copy = cleanCopyText(v.copy);
+    v.copyComment = cleanCopyText(v.copyComment);
+    v.generalComment = cleanCopyText(v.generalComment);
+    v.notesForToni = cleanCopyText(v.notesForToni);
+    v.scriptLines.forEach(l => { l.comment = cleanCopyText(l.comment); });
+    v.timestampComments.forEach(c => { c.comment = cleanCopyText(c.comment); });
   });
   if(videos.length && !activeId) activeId = videos[0].id;
   render();
@@ -641,10 +703,22 @@ function setVideoStatus(id, status){
   save(id);
 }
 
+function statusModeClass(status){
+  if(status === 'corregir') return ' mode-corregir';
+  if(status === 'aprobado') return ' mode-aprobado';
+  return '';
+}
+
 function applyCorrectMode(status){
   const on = status === 'corregir';
-  document.body.classList.toggle('mode-corregir', on);
-  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('mode-corregir', on));
+  const corr = status === 'corregir';
+  const apr  = status === 'aprobado';
+  document.body.classList.toggle('mode-corregir', corr);
+  document.body.classList.toggle('mode-aprobado', apr);
+  document.querySelectorAll('.panel').forEach(p=>{
+    p.classList.toggle('mode-corregir', corr);
+    p.classList.toggle('mode-aprobado', apr);
+  });
 }
 
 function nextLineStatus(s){
@@ -728,7 +802,7 @@ function renderDashboard(){
     { key:'aprobado',    label:'Aprobados',   cls:'is-aprobado' }
   ];
 
-  el.innerHTML = '<div class="dash">' + groups.map(g=>{
+  const full = '<div class="dash">' + groups.map(g=>{
     const items = videos.filter(v=>v.status===g.key);
     const rows = items.length
       ? items.map(v=>{
@@ -743,10 +817,60 @@ function renderDashboard(){
                + '<span class="nm">'+escapeHtml(v.name)+'</span>'+btn+'</button>';
         }).join('')
       : '<span class="dash-empty">Ninguno</span>';
+    const head = (g.key==='aprobado' && items.some(v=>driveDownload(v.driveHD)))
+      ? '<div class="dash-head">'+g.label
+        + '<button class="dash-dl-all" onclick="downloadAllApproved()">Descargar todos</button>'
+        + '<span class="dash-count">'+items.length+'</span></div>'
+      : '<div class="dash-head">'+g.label+'<span class="dash-count">'+items.length+'</span></div>';
     return '<div class="dash-col '+g.cls+'">'
-         + '<div class="dash-head">'+g.label+'<span class="dash-count">'+items.length+'</span></div>'
+         + head
          + '<div class="dash-items">'+rows+'</div></div>';
   }).join('') + '</div>';
+
+  const toggle = '<button class="dash-toggle" onclick="toggleDashboard()">'
+               + (dashOpen ? '▾ Ocultar resumen' : '▸ Mostrar resumen')
+               + '</button>';
+
+  const compact = groups.map(g=>{
+    const n = videos.filter(v=>v.status===g.key).length;
+    return '<span class="dash-chip">'
+         + '<span class="dot" style="background:'+statusColor(g.key)+'"></span>'
+         + g.label+' <b>'+n+'</b></span>';
+  }).join('');
+
+  el.innerHTML = '<div class="dash-bar">'+toggle
+               + (dashOpen ? '' : '<div class="dash-compact">'+compact+'</div>')
+               + '</div>'
+               + (dashOpen ? full : '');
+}
+
+function toggleDashboard(){
+  dashOpen = !dashOpen;
+  renderDashboard();
+}
+
+function downloadAllApproved(){
+  const withHd = videos.filter(v => v.status==='aprobado' && driveDownload(v.driveHD));
+  const withoutHd = videos.filter(v => v.status==='aprobado' && !driveDownload(v.driveHD));
+  if(!withHd.length){ alert('Ninguno de los aprobados tiene link HD todavía.'); return; }
+
+  let msg = 'Se van a descargar '+withHd.length+' video(s) en HD.';
+  if(withoutHd.length) msg += '\n\n'+withoutHd.length+' aprobado(s) no tienen link HD y se van a omitir.';
+  msg += '\n\nEl navegador puede pedirte permiso para descargar varios archivos a la vez — acéptalo.';
+  if(!confirm(msg)) return;
+
+  withHd.forEach((v, i) => {
+    setTimeout(() => {
+      const a = document.createElement('a');
+      a.href = driveDownload(v.driveHD);
+      a.download = '';
+      a.target = '_blank';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }, i * 900);
+  });
 }
 
 function goToVideo(id){
@@ -765,19 +889,20 @@ function reviewHtml(v){
         <div class="line-text">${escapeHtml(l.text)}</div>
         <div class="line-controls">
           <button id="line-btn-${l.id}" class="${pillClass(l.status)}" onclick="toggleLineStatus('${v.id}','${l.id}')">${pillLabel(l.status)}</button>
-          <textarea class="comment" placeholder="Comentario…" oninput="updateLineComment('${v.id}','${l.id}',this.value)">${escapeHtml(l.comment)}</textarea>
+          <textarea class="comment" placeholder="Comentario…" oninput="updateLineComment('${v.id}','${l.id}',this.value)">${escapeHtml(cleanCopyText(l.comment))}</textarea>
         </div>
       </div>
     </div>
   `).join('');
 
   return `
-    <div class="panel${v.status==='corregir'?' mode-corregir':''}">
+    <div class="panel${statusModeClass(v.status)}">
       <div class="correct-banner">Este video está marcado para corregir.</div>
+      <div class="approved-banner">Este video está aprobado.</div>
 
       <div class="note-block">
         <label class="note-label">Notas para Toni</label>
-        <textarea class="note-text" placeholder="Cualquier cosa que quieras dejarle escrita…" oninput="updateVideoNote('${v.id}', this.value)">${escapeHtml(v.notesForToni || '')}</textarea>
+        <textarea class="note-text" placeholder="Cualquier cosa que quieras dejarle escrita…" oninput="updateVideoNote('${v.id}', this.value)">${escapeHtml(cleanCopyText(v.notesForToni))}</textarea>
       </div>
 
       <h2 class="section-title">Guion</h2>
@@ -797,7 +922,7 @@ function reviewHtml(v){
 
       <div class="copy-block">
         <h2 class="section-title">Comentarios generales</h2>
-        <textarea class="copy-text" placeholder="Cualquier observación general sobre este video…" oninput="updateGeneralComment('${v.id}', this.value)">${escapeHtml(v.generalComment || '')}</textarea>
+        <textarea class="copy-text" placeholder="Cualquier observación general sobre este video…" oninput="updateGeneralComment('${v.id}', this.value)">${escapeHtml(cleanCopyText(v.generalComment))}</textarea>
       </div>
 
       <div class="save-bar">
@@ -819,7 +944,7 @@ function copyHtml(v){
     ${body}
     <div class="line-controls" style="margin-top:10px;">
       <button id="copy-status-btn" class="${pillClass(v.copyStatus)}" onclick="toggleCopyStatus('${v.id}')">${pillLabel(v.copyStatus)}</button>
-      <textarea class="comment" placeholder="Comentario sobre el copy…" oninput="updateCopyComment('${v.id}',this.value)">${escapeHtml(v.copyComment)}</textarea>
+      <textarea class="comment" placeholder="Comentario sobre el copy…" oninput="updateCopyComment('${v.id}',this.value)">${escapeHtml(cleanCopyText(v.copyComment))}</textarea>
     </div>
   `;
 }
@@ -840,7 +965,7 @@ function tcHtml(v){
           ${c.type ? `<span class="tc-type">${escapeHtml(c.type)}</span>` : ''}
           <button id="tc-btn-${c.id}" class="${c.status==='resuelto' ? 'pill ok' : 'pill'}" onclick="toggleTcStatus('${v.id}','${c.id}')">${c.status==='resuelto' ? '✓ Resuelto' : 'Pendiente'}</button>
         </div>
-        <div class="tc-text">${escapeHtml(c.comment)}</div>
+        <div class="tc-text">${escapeHtml(cleanCopyText(c.comment))}</div>
       </div>
     `).join('')
     : '<p class="subtitle">Sin comentarios por momento todavía.</p>';
@@ -888,7 +1013,7 @@ function render(){
 
   if(!videos.length){
     app.innerHTML = `<div class="panel"><div class="empty"><p>Todavía no hay videos en revisión.</p><button class="btn-add" onclick="openModal()">Agregar el primero</button></div></div>`;
-    document.body.classList.remove('mode-corregir');
+    document.body.classList.remove('mode-corregir','mode-aprobado');
     return;
   }
   const v = videos.find(v=>v.id===activeId) || videos[0];
@@ -909,7 +1034,7 @@ function render(){
     <div class="tabs">${tabs}</div>
     <div class="layout">
       <div class="col-video">
-        <div class="panel${v.status==='corregir'?' mode-corregir':''}">
+        <div class="panel${statusModeClass(v.status)}">
           ${videoHtml}
           <div class="status-row">
             <div class="video-name">${escapeHtml(v.name)}</div>
