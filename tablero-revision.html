@@ -533,7 +533,21 @@ function migrateStatus(s){
 }
 
 function cleanCopyText(t){
-  return (t || '').replace(/<br\s*\/?>/gi, '\n');
+  if(t === null || t === undefined) return '';
+  let s = String(t);
+  // saltos de línea escritos como HTML, en cualquier variante
+  s = s.replace(/&lt;\s*br\s*\/?\s*&gt;/gi, '\n');
+  s = s.replace(/<\s*br\s*\/?\s*>/gi, '\n');
+  // párrafos y divs también se vuelven saltos
+  s = s.replace(/<\s*\/?\s*(p|div)\s*[^>]*>/gi, '\n');
+  // cualquier otra etiqueta suelta se elimina
+  s = s.replace(/<\/?[a-z][^>]*>/gi, '');
+  // entidades comunes
+  s = s.replace(/&nbsp;/gi, ' ');
+  s = s.replace(/&amp;/gi, '&');
+  // no más de un renglón en blanco seguido
+  s = s.replace(/\n{3,}/g, '\n\n');
+  return s;
 }
 
 async function load(){
