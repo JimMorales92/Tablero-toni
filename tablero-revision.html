@@ -1201,7 +1201,7 @@ async function deleteAudioNote(vid, noteId, driveId){
 
 function escapeHtml(s){
   const d = document.createElement('div');
-  d.innerText = s || '';
+  d.textContent = s == null ? '' : String(s);
   return d.innerHTML;
 }
 
