@@ -25,15 +25,17 @@ body{
   font-family:'Public Sans',sans-serif;
   font-size:15px;
   line-height:1.5;
+  transition:background .25s ease;
 }
+body.mode-corregir{background:#2A1E19;}
 
-.wrap{max-width:860px;margin:0 auto;padding:28px 20px 80px;}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 20px 60px;}
 
-header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:18px;flex-wrap:wrap;}
 h1{
   font-family:'Fraunces',serif;
   font-weight:500;
-  font-size:28px;
+  font-size:26px;
   margin:0 0 4px;
   letter-spacing:.2px;
 }
@@ -50,7 +52,60 @@ button{font-family:inherit;cursor:pointer;}
 }
 .btn-add:hover{background:#DBB05C;}
 
-.tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:20px;border-bottom:1px solid var(--line);}
+/* ---------- dashboard ---------- */
+.dash{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-bottom:18px;
+}
+.dash-col{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:11px 13px;
+}
+.dash-col.is-corregir{border-color:var(--red-flag);}
+.dash-col.is-aprobado{border-color:var(--green);}
+.dash-head{
+  display:flex;align-items:center;gap:7px;
+  font-size:12px;color:var(--text-dim);
+  text-transform:uppercase;letter-spacing:.6px;
+  margin-bottom:8px;
+}
+.dash-count{
+  margin-left:auto;
+  font-family:'Fraunces',serif;
+  font-size:17px;color:var(--text);
+  letter-spacing:0;
+}
+.dash-items{display:flex;flex-direction:column;gap:4px;}
+.dash-item{
+  display:flex;align-items:center;gap:6px;
+  background:transparent;border:none;
+  color:var(--text);font-size:12.5px;
+  padding:3px 0;text-align:left;width:100%;
+}
+.dash-item .nm{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  flex:1 1 auto;
+}
+.dash-item:hover .nm{color:var(--brass);}
+.dash-dl{
+  flex:0 0 auto;
+  background:var(--panel-raised);
+  border:1px solid var(--green);
+  color:var(--green);
+  border-radius:5px;
+  font-size:11px;
+  padding:1px 7px;
+  text-decoration:none;
+  line-height:1.6;
+}
+.dash-dl.off{border-color:var(--line);color:var(--grey);cursor:default;}
+.dash-empty{font-size:12px;color:var(--grey);}
+
+.tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:18px;border-bottom:1px solid var(--line);}
 .tab{
   flex:0 0 auto;
   padding:9px 14px;
@@ -65,15 +120,46 @@ button{font-family:inherit;cursor:pointer;}
 .tab.active{background:var(--panel);color:var(--text);}
 .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;}
 
-.panel{background:var(--panel);border-radius:12px;padding:22px;}
+/* ---------- two-column layout ---------- */
+.layout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:20px;
+  align-items:start;
+}
+.col-video{position:sticky;top:18px;}
+.col-review{
+  max-height:calc(100vh - 40px);
+  overflow-y:auto;
+  padding-right:12px;
+}
+.col-review::-webkit-scrollbar{width:9px;}
+.col-review::-webkit-scrollbar-track{background:var(--panel);border-radius:5px;}
+.col-review::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+.col-review::-webkit-scrollbar-thumb:hover{background:var(--brass-dim);}
+
+.panel{background:var(--panel);border-radius:12px;padding:18px;}
+.panel.mode-corregir{box-shadow:inset 0 0 0 1px var(--red-flag);}
 .empty{color:var(--text-dim);text-align:center;padding:60px 20px;}
 .empty p{margin:0 0 14px;}
 
-.video-frame{position:relative;padding-top:56.25%;background:#000;border-radius:9px;overflow:hidden;margin-bottom:16px;}
+.correct-banner{
+  display:none;
+  background:rgba(199,123,95,.14);
+  border:1px solid var(--red-flag);
+  color:var(--red-flag);
+  border-radius:8px;
+  padding:8px 12px;
+  font-size:12.5px;
+  margin-bottom:12px;
+}
+.mode-corregir .correct-banner{display:block;}
+
+.video-frame{position:relative;padding-top:56.25%;background:#000;border-radius:9px;overflow:hidden;margin-bottom:14px;}
 .video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
 
-.status-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:26px;}
-.video-name{font-family:'Fraunces',serif;font-size:19px;font-weight:500;}
+.status-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.video-name{font-family:'Fraunces',serif;font-size:18px;font-weight:500;}
 select.status-select{
   background:var(--panel-raised);
   color:var(--text);
@@ -111,12 +197,13 @@ h2.section-title{
   padding:5px 12px;
   font-size:12.5px;
   display:flex;align-items:center;gap:6px;
+  white-space:nowrap;
 }
 .pill.ok{color:var(--green);border-color:var(--green);}
 .pill.flag{color:var(--red-flag);border-color:var(--red-flag);}
 textarea.comment{
   flex:1 1 200px;
-  min-width:160px;
+  min-width:140px;
   background:var(--panel-raised);
   border:1px solid var(--line);
   border-radius:7px;
@@ -129,7 +216,7 @@ textarea.comment{
 }
 textarea.comment::placeholder{color:var(--grey);}
 
-.copy-block{margin-top:30px;padding-top:20px;border-top:1px solid var(--line);}
+.copy-block{margin-top:26px;padding-top:18px;border-top:1px solid var(--line);}
 .copy-display{
   white-space:pre-wrap;
   background:var(--panel-raised);
@@ -150,13 +237,15 @@ textarea.copy-text{
   font-family:inherit;
   font-size:14px;
   padding:12px;
-  min-height:80px;
+  min-height:120px;
   margin-bottom:10px;
+  line-height:1.6;
+  resize:vertical;
 }
 
 .modal-overlay{
   position:fixed;inset:0;background:rgba(15,12,9,.72);
-  display:flex;align-items:center;justify-content:center;padding:20px;z-index:10;
+  display:flex;align-items:center;justify-content:center;padding:20px;z-index:20;
 }
 .modal{background:var(--panel);border-radius:12px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;}
 .modal h2{font-family:'Fraunces',serif;font-weight:500;font-size:19px;margin:0 0 16px;}
@@ -173,7 +262,7 @@ textarea.copy-text{
 
 .save-bar{
   display:flex;align-items:center;gap:12px;
-  margin-top:30px;padding-top:20px;border-top:1px solid var(--line);
+  margin-top:26px;padding-top:18px;border-top:1px solid var(--line);
 }
 .btn-save{
   background:var(--brass);color:#241D14;border:none;
@@ -214,7 +303,7 @@ textarea.copy-text{
   text-decoration:underline;
 }
 
-.note-block{margin-bottom:22px;}
+.note-block{margin-bottom:18px;}
 .note-label{display:block;font-family:'Fraunces',serif;font-size:15px;color:var(--brass);margin-bottom:8px;}
 textarea.note-text{
   width:100%;
@@ -229,6 +318,18 @@ textarea.note-text{
   resize:vertical;
 }
 textarea.note-text::placeholder{color:var(--grey);}
+
+@media (max-width:900px){
+  .dash{grid-template-columns:1fr;gap:8px;}
+  .layout{grid-template-columns:1fr;gap:14px;}
+  .col-video{
+    position:sticky;top:0;z-index:5;
+    background:var(--bg);
+    padding:8px 0;
+  }
+  body.mode-corregir .col-video{background:#2A1E19;}
+  .col-review{max-height:none;overflow-y:visible;padding-right:0;}
+}
 </style>
 
 <div class="wrap">
@@ -237,9 +338,13 @@ textarea.note-text::placeholder{color:var(--grey);}
       <h1>Revisión — Toni Sax</h1>
       <p class="subtitle">Video, guion y copy de cada entrega, en un solo lugar</p>
     </div>
-    <button class="btn-add" onclick="openModal()">Agregar video</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-cancel" onclick="openHdModal()">Links HD</button>
+      <button class="btn-add" onclick="openModal()">Agregar video</button>
+    </div>
   </header>
 
+  <div id="dashboard"></div>
   <div id="app"><div class="loading">Cargando…</div></div>
 </div>
 
@@ -253,6 +358,10 @@ textarea.note-text::placeholder{color:var(--grey);}
     <div class="field">
       <label>Link de Drive del video en baja calidad</label>
       <input id="f-drive" type="text" placeholder="https://drive.google.com/file/d/...">
+    </div>
+    <div class="field">
+      <label>Link de Drive del video en HD (opcional, para descargar al aprobarse)</label>
+      <input id="f-driveHD" type="text" placeholder="https://drive.google.com/file/d/...">
     </div>
     <div class="field">
       <label>Guion (.srt exportado de CapCut)</label>
@@ -269,6 +378,18 @@ textarea.note-text::placeholder{color:var(--grey);}
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-add" onclick="addVideo()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="hdModalOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <h2>Links de video en HD</h2>
+    <p class="subtitle" style="margin-bottom:16px;">Pega el link de Drive del archivo en HD de cada video. Los aprobados mostrarán su botón de descarga en el tablero.</p>
+    <div id="hd-fields"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeHdModal()">Cancelar</button>
+      <button class="btn-add" onclick="saveHdLinks()">Guardar</button>
     </div>
   </div>
 </div>
@@ -315,10 +436,17 @@ function statusColor(s){
   return 'var(--grey)';
 }
 
+function driveFileId(url){
+  const m = (url||'').match(/[-\w]{25,}/);
+  return m ? m[0] : null;
+}
 function driveEmbed(url){
-  const m = url.match(/[-\w]{25,}/);
-  if(!m) return null;
-  return `https://drive.google.com/file/d/${m[0]}/preview`;
+  const id = driveFileId(url);
+  return id ? 'https://drive.google.com/file/d/'+id+'/preview' : null;
+}
+function driveDownload(url){
+  const id = driveFileId(url);
+  return id ? 'https://drive.google.com/uc?export=download&id='+id : null;
 }
 
 function migrateStatus(s){
@@ -326,6 +454,10 @@ function migrateStatus(s){
   if(s==='exportado HD') return 'aprobado';
   if(STATUSES.includes(s)) return s;
   return 'sin revisar';
+}
+
+function cleanCopyText(t){
+  return (t || '').replace(/<br\s*\/?>/gi, '\n');
 }
 
 async function load(){
@@ -341,9 +473,11 @@ async function load(){
     v.status = migrateStatus(v.status);
     if(v.generalComment === undefined) v.generalComment = '';
     if(v.notesForToni === undefined) v.notesForToni = '';
+    if(v.driveHD === undefined) v.driveHD = '';
+    if(!Array.isArray(v.scriptLines)) v.scriptLines = [];
     if(!Array.isArray(v.timestampComments)) v.timestampComments = [];
     if(!Array.isArray(v.audioNotes)) v.audioNotes = [];
-    if(!Array.isArray(v.scriptLines)) v.scriptLines = [];
+    v.copy = cleanCopyText(v.copy);
   });
   if(videos.length && !activeId) activeId = videos[0].id;
   render();
@@ -365,6 +499,7 @@ async function save(vid){
   }
 }
 
+/* ---------- SRT ---------- */
 function parseSrt(content){
   const normalized = content.replace(/\r/g, '');
   const blocks = normalized.split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
@@ -396,18 +531,20 @@ function handleSrtUpload(input){
   reader.readAsText(file);
 }
 
+/* ---------- add video ---------- */
 function openModal(){document.getElementById('modalOverlay').style.display='flex';}
 function closeModal(){
   document.getElementById('modalOverlay').style.display='none';
-  ['f-name','f-drive','f-script','f-copy'].forEach(id=>document.getElementById(id).value='');
+  ['f-name','f-drive','f-driveHD','f-script','f-copy'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-srt').value='';
 }
 
 function addVideo(){
   const name = document.getElementById('f-name').value.trim();
   const drive = document.getElementById('f-drive').value.trim();
+  const driveHD = document.getElementById('f-driveHD').value.trim();
   const scriptRaw = document.getElementById('f-script').value;
-  const copy = document.getElementById('f-copy').value.trim();
+  const copy = cleanCopyText(document.getElementById('f-copy').value.trim());
   if(!name || !drive){ alert('Falta el nombre o el link del video'); return; }
 
   const lines = scriptRaw.split('\n').map(t=>t.trim()).filter(Boolean).map((text,i)=>({
@@ -416,7 +553,7 @@ function addVideo(){
 
   const video = {
     id: 'v'+Date.now(),
-    name, drive,
+    name, drive, driveHD,
     status:'sin revisar',
     scriptLines: lines,
     copy: copy,
@@ -429,21 +566,79 @@ function addVideo(){
   };
   videos.push(video);
   activeId = video.id;
+  copyEditMode = false;
   closeModal();
   save(video.id);
   render();
 }
 
+/* ---------- HD links ---------- */
+function openHdModal(){
+  const box = document.getElementById('hd-fields');
+  if(!videos.length){
+    box.innerHTML = '<p class="subtitle">Todavía no hay videos.</p>';
+  }else{
+    box.innerHTML = videos.map(v=>`
+      <div class="field">
+        <label><span class="dot" style="background:${statusColor(v.status)};display:inline-block;margin-right:6px;"></span>${escapeHtml(v.name)}</label>
+        <input type="text" id="hd-${v.id}" value="${escapeHtml(v.driveHD || '')}" placeholder="https://drive.google.com/file/d/...">
+      </div>
+    `).join('');
+  }
+  document.getElementById('hdModalOverlay').style.display='flex';
+}
+
+function closeHdModal(){
+  document.getElementById('hdModalOverlay').style.display='none';
+}
+
+async function saveHdLinks(){
+  const changed = [];
+  videos.forEach(v=>{
+    const input = document.getElementById('hd-'+v.id);
+    if(!input) return;
+    const val = input.value.trim();
+    if(val !== (v.driveHD || '')){
+      v.driveHD = val;
+      changed.push(v.id);
+    }
+  });
+  closeHdModal();
+  renderDashboard();
+  for(const id of changed){
+    try{ await save(id); }catch(e){ console.error('No se pudo guardar el link HD de', id, e); }
+  }
+}
+
+/* ---------- in-place status updates (no video reload) ---------- */
 function setVideoStatus(id, status){
   const v = videos.find(v=>v.id===id);
-  if(v){ v.status = status; save(id); render(); }
+  if(!v) return;
+  v.status = status;
+  const dot = document.getElementById('dot-'+id);
+  if(dot) dot.style.background = statusColor(status);
+  applyCorrectMode(status);
+  renderDashboard();
+  save(id);
+}
+
+function applyCorrectMode(status){
+  const on = status === 'corregir';
+  document.body.classList.toggle('mode-corregir', on);
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('mode-corregir', on));
+}
+
+function nextLineStatus(s){
+  return s==='aprobado' ? 'cambio solicitado' : (s==='cambio solicitado' ? 'pendiente' : 'aprobado');
 }
 
 function toggleLineStatus(vid, lid){
   const v = videos.find(v=>v.id===vid);
   const l = v.scriptLines.find(l=>l.id===lid);
-  l.status = l.status==='aprobado' ? 'cambio solicitado' : (l.status==='cambio solicitado' ? 'pendiente' : 'aprobado');
-  save(vid); render();
+  l.status = nextLineStatus(l.status);
+  const btn = document.getElementById('line-btn-'+lid);
+  if(btn){ btn.className = pillClass(l.status); btn.textContent = pillLabel(l.status); }
+  save(vid);
 }
 
 function updateLineComment(vid, lid, val){
@@ -454,13 +649,42 @@ function updateLineComment(vid, lid, val){
 
 function toggleCopyStatus(vid){
   const v = videos.find(v=>v.id===vid);
-  v.copyStatus = v.copyStatus==='aprobado' ? 'cambio solicitado' : (v.copyStatus==='cambio solicitado' ? 'pendiente' : 'aprobado');
-  save(vid); render();
+  v.copyStatus = nextLineStatus(v.copyStatus);
+  const btn = document.getElementById('copy-status-btn');
+  if(btn){ btn.className = pillClass(v.copyStatus); btn.textContent = pillLabel(v.copyStatus); }
+  save(vid);
 }
 
 function updateCopyComment(vid, val){
   const v = videos.find(v=>v.id===vid);
   v.copyComment = val; save(vid);
+}
+
+function toggleTcStatus(vid, cid){
+  const v = videos.find(v=>v.id===vid);
+  const c = v.timestampComments.find(c=>c.id===cid);
+  c.status = c.status==='resuelto' ? 'pendiente' : 'resuelto';
+  const btn = document.getElementById('tc-btn-'+cid);
+  if(btn){
+    btn.className = c.status==='resuelto' ? 'pill ok' : 'pill';
+    btn.textContent = c.status==='resuelto' ? '✓ Resuelto' : 'Pendiente';
+  }
+  save(vid);
+}
+
+function updateGeneralComment(vid, val){
+  const v = videos.find(v=>v.id===vid);
+  v.generalComment = val; save(vid);
+}
+
+function updateVideoNote(vid, val){
+  const v = videos.find(v=>v.id===vid);
+  v.notesForToni = val; save(vid);
+}
+
+function updateVideoCopy(vid, val){
+  const v = videos.find(v=>v.id===vid);
+  v.copy = val; save(vid);
 }
 
 function pillClass(status){
@@ -474,104 +698,82 @@ function pillLabel(status){
   return 'Pendiente';
 }
 
-function render(){
-  const app = document.getElementById('app');
-  if(!videos.length){
-    app.innerHTML = `<div class="panel"><div class="empty"><p>Todavía no hay videos en revisión.</p><button class="btn-add" onclick="openModal()">Agregar el primero</button></div></div>`;
-    return;
-  }
-  const v = videos.find(v=>v.id===activeId) || videos[0];
-  activeId = v.id;
+/* ---------- dashboard ---------- */
+function renderDashboard(){
+  const el = document.getElementById('dashboard');
+  if(!videos.length){ el.innerHTML=''; return; }
 
-  const tabs = videos.map(vid=>`
-    <button class="tab ${vid.id===v.id?'active':''}" onclick="activeId='${vid.id}';copyEditMode=false;render();">
-      <span class="dot" style="background:${statusColor(vid.status)}"></span>${vid.name}
-    </button>
-  `).join('');
+  const groups = [
+    { key:'sin revisar', label:'Sin revisar', cls:'' },
+    { key:'corregir',    label:'Corregir',    cls:'is-corregir' },
+    { key:'aprobado',    label:'Aprobados',   cls:'is-aprobado' }
+  ];
 
-  const embed = driveEmbed(v.drive);
-  const videoHtml = embed
-    ? `<div class="video-frame"><iframe src="${embed}" allow="autoplay" allowfullscreen></iframe></div>`
-    : `<p class="subtitle">No se pudo leer el link de Drive.</p>`;
+  el.innerHTML = '<div class="dash">' + groups.map(g=>{
+    const items = videos.filter(v=>v.status===g.key);
+    const rows = items.length
+      ? items.map(v=>{
+          const dl = driveDownload(v.driveHD);
+          const btn = g.key==='aprobado'
+            ? (dl
+                ? '<a class="dash-dl" href="'+dl+'" target="_blank" onclick="event.stopPropagation()">HD ↓</a>'
+                : '<span class="dash-dl off" title="Sin link HD">—</span>')
+            : '';
+          return '<button class="dash-item" onclick="goToVideo(\''+v.id+'\')">'
+               + '<span class="dot" style="background:'+statusColor(g.key)+'"></span>'
+               + '<span class="nm">'+escapeHtml(v.name)+'</span>'+btn+'</button>';
+        }).join('')
+      : '<span class="dash-empty">Ninguno</span>';
+    return '<div class="dash-col '+g.cls+'">'
+         + '<div class="dash-head">'+g.label+'<span class="dash-count">'+items.length+'</span></div>'
+         + '<div class="dash-items">'+rows+'</div></div>';
+  }).join('') + '</div>';
+}
 
+function goToVideo(id){
+  activeId = id;
+  copyEditMode = false;
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ---------- review column ---------- */
+function reviewHtml(v){
   const lines = v.scriptLines.map((l,i)=>`
     <div class="line-row">
       <div class="line-num">${String(i+1).padStart(2,'0')}</div>
       <div>
         <div class="line-text">${escapeHtml(l.text)}</div>
         <div class="line-controls">
-          <button class="${pillClass(l.status)}" onclick="toggleLineStatus('${v.id}','${l.id}')">${pillLabel(l.status)}</button>
+          <button id="line-btn-${l.id}" class="${pillClass(l.status)}" onclick="toggleLineStatus('${v.id}','${l.id}')">${pillLabel(l.status)}</button>
           <textarea class="comment" placeholder="Comentario…" oninput="updateLineComment('${v.id}','${l.id}',this.value)">${escapeHtml(l.comment)}</textarea>
         </div>
       </div>
     </div>
   `).join('');
 
-  app.innerHTML = `
-    <div class="tabs">${tabs}</div>
-    <div class="panel">
+  return `
+    <div class="panel${v.status==='corregir'?' mode-corregir':''}">
+      <div class="correct-banner">Este video está marcado para corregir.</div>
+
       <div class="note-block">
         <label class="note-label">Notas para Toni</label>
         <textarea class="note-text" placeholder="Cualquier cosa que quieras dejarle escrita…" oninput="updateVideoNote('${v.id}', this.value)">${escapeHtml(v.notesForToni || '')}</textarea>
-      </div>
-      ${videoHtml}
-      <div class="status-row">
-        <div class="video-name">${escapeHtml(v.name)}</div>
-        <select class="status-select" onchange="setVideoStatus('${v.id}', this.value)">
-          ${STATUSES.map(s=>`<option value="${s}" ${s===v.status?'selected':''}>${s}</option>`).join('')}
-        </select>
       </div>
 
       <h2 class="section-title">Guion</h2>
       ${lines || '<p class="subtitle">Sin líneas de guion.</p>'}
 
-      <div class="copy-block">
-        <h2 class="section-title">Copy</h2>
-        ${copyEditMode
-          ? `<textarea class="copy-text" oninput="updateVideoCopy('${v.id}', this.value)">${escapeHtml(cleanCopyText(v.copy))}</textarea>
-             <button class="btn-cancel" onclick="copyEditMode=false;render();">Listo</button>`
-          : `<div class="copy-display">${escapeHtml(cleanCopyText(v.copy)) || '<span class="subtitle">Sin copy todavía.</span>'}</div>
-             <button class="btn-cancel" onclick="copyEditMode=true;render();">Editar</button>`
-        }
-        <div class="line-controls">
-          <button class="${pillClass(v.copyStatus)}" onclick="toggleCopyStatus('${v.id}')">${pillLabel(v.copyStatus)}</button>
-          <textarea class="comment" placeholder="Comentario sobre el copy…" oninput="updateCopyComment('${v.id}',this.value)">${escapeHtml(v.copyComment)}</textarea>
-        </div>
+      <div class="copy-block" id="copy-area">
+        ${copyHtml(v)}
       </div>
 
-      <div class="copy-block">
-        <h2 class="section-title">Comentarios por momento</h2>
-        ${(v.timestampComments && v.timestampComments.length)
-          ? v.timestampComments.map(c => `
-            <div class="tc-row">
-              <div class="tc-head">
-                ${c.time ? `<span class="tc-time">${escapeHtml(c.time)}</span>` : ''}
-                ${c.type ? `<span class="tc-type">${escapeHtml(c.type)}</span>` : ''}
-                <button class="${c.status==='resuelto' ? 'pill ok' : 'pill'}" onclick="toggleTcStatus('${v.id}','${c.id}')">${c.status==='resuelto' ? '✓ Resuelto' : 'Pendiente'}</button>
-              </div>
-              <div class="tc-text">${escapeHtml(c.comment)}</div>
-            </div>
-          `).join('')
-          : '<p class="subtitle">Sin comentarios por momento todavía.</p>'
-        }
-        <button class="btn-cancel" onclick="openCommentModal('${v.id}')">Agregar comentario</button>
+      <div class="copy-block" id="tc-area">
+        ${tcHtml(v)}
       </div>
 
-      <div class="copy-block">
-        <h2 class="section-title">Notas de audio</h2>
-        ${(v.audioNotes && v.audioNotes.length)
-          ? v.audioNotes.map(a => `
-            <div class="audio-row">
-              <iframe src="https://drive.google.com/file/d/${a.driveId}/preview" width="100%" height="80" allow="autoplay" style="border:0;border-radius:8px;"></iframe>
-              <button class="btn-delete-audio" onclick="deleteAudioNote('${v.id}','${a.id}','${a.driveId}')">Eliminar nota</button>
-            </div>
-          `).join('')
-          : '<p class="subtitle">Sin notas de audio todavía.</p>'
-        }
-        <button class="btn-record${isRecording && recordingVid===v.id ? ' recording' : ''}" id="record-btn-${v.id}" onclick="toggleRecording('${v.id}')">
-          ${isRecording && recordingVid===v.id ? '⏺ Detener y guardar' : '🎙 Grabar nota de audio'}
-        </button>
-        <span class="save-status" id="audio-status"></span>
+      <div class="copy-block" id="audio-area">
+        ${audioHtml(v)}
       </div>
 
       <div class="copy-block">
@@ -587,11 +789,126 @@ function render(){
   `;
 }
 
-function updateVideoCopy(vid, val){
-  const v = videos.find(v=>v.id===vid);
-  v.copy = val; save(vid);
+function copyHtml(v){
+  const body = copyEditMode
+    ? `<textarea class="copy-text" oninput="updateVideoCopy('${v.id}', this.value)">${escapeHtml(cleanCopyText(v.copy))}</textarea>
+       <button class="btn-cancel" onclick="setCopyEdit(false)">Listo</button>`
+    : `<div class="copy-display">${escapeHtml(cleanCopyText(v.copy)) || '<span class="subtitle">Sin copy todavía.</span>'}</div>
+       <button class="btn-cancel" onclick="setCopyEdit(true)">Editar</button>`;
+  return `
+    <h2 class="section-title">Copy</h2>
+    ${body}
+    <div class="line-controls" style="margin-top:10px;">
+      <button id="copy-status-btn" class="${pillClass(v.copyStatus)}" onclick="toggleCopyStatus('${v.id}')">${pillLabel(v.copyStatus)}</button>
+      <textarea class="comment" placeholder="Comentario sobre el copy…" oninput="updateCopyComment('${v.id}',this.value)">${escapeHtml(v.copyComment)}</textarea>
+    </div>
+  `;
 }
 
+function setCopyEdit(on){
+  copyEditMode = on;
+  const v = videos.find(v=>v.id===activeId);
+  const el = document.getElementById('copy-area');
+  if(el && v) el.innerHTML = copyHtml(v);
+}
+
+function tcHtml(v){
+  const rows = (v.timestampComments && v.timestampComments.length)
+    ? v.timestampComments.map(c => `
+      <div class="tc-row">
+        <div class="tc-head">
+          ${c.time ? `<span class="tc-time">${escapeHtml(c.time)}</span>` : ''}
+          ${c.type ? `<span class="tc-type">${escapeHtml(c.type)}</span>` : ''}
+          <button id="tc-btn-${c.id}" class="${c.status==='resuelto' ? 'pill ok' : 'pill'}" onclick="toggleTcStatus('${v.id}','${c.id}')">${c.status==='resuelto' ? '✓ Resuelto' : 'Pendiente'}</button>
+        </div>
+        <div class="tc-text">${escapeHtml(c.comment)}</div>
+      </div>
+    `).join('')
+    : '<p class="subtitle">Sin comentarios por momento todavía.</p>';
+  return `
+    <h2 class="section-title">Comentarios por momento</h2>
+    ${rows}
+    <button class="btn-cancel" style="margin-top:10px;" onclick="openCommentModal('${v.id}')">Agregar comentario</button>
+  `;
+}
+
+function audioHtml(v){
+  const rows = (v.audioNotes && v.audioNotes.length)
+    ? v.audioNotes.map(a => `
+      <div class="audio-row">
+        <iframe src="https://drive.google.com/file/d/${a.driveId}/preview" width="100%" height="70" allow="autoplay" style="border:0;border-radius:8px;"></iframe>
+        <button class="btn-delete-audio" onclick="deleteAudioNote('${v.id}','${a.id}','${a.driveId}')">Eliminar nota</button>
+      </div>
+    `).join('')
+    : '<p class="subtitle">Sin notas de audio todavía.</p>';
+  return `
+    <h2 class="section-title">Notas de audio</h2>
+    ${rows}
+    <button class="btn-record${isRecording && recordingVid===v.id ? ' recording' : ''}" onclick="toggleRecording('${v.id}')">
+      ${isRecording && recordingVid===v.id ? '⏺ Detener y guardar' : '🎙 Grabar nota de audio'}
+    </button>
+    <span class="save-status" id="audio-status"></span>
+  `;
+}
+
+function refreshTc(){
+  const v = videos.find(v=>v.id===activeId);
+  const el = document.getElementById('tc-area');
+  if(el && v) el.innerHTML = tcHtml(v);
+}
+function refreshAudio(){
+  const v = videos.find(v=>v.id===activeId);
+  const el = document.getElementById('audio-area');
+  if(el && v) el.innerHTML = audioHtml(v);
+}
+
+/* ---------- full render ---------- */
+function render(){
+  const app = document.getElementById('app');
+  renderDashboard();
+
+  if(!videos.length){
+    app.innerHTML = `<div class="panel"><div class="empty"><p>Todavía no hay videos en revisión.</p><button class="btn-add" onclick="openModal()">Agregar el primero</button></div></div>`;
+    document.body.classList.remove('mode-corregir');
+    return;
+  }
+  const v = videos.find(v=>v.id===activeId) || videos[0];
+  activeId = v.id;
+
+  const tabs = videos.map(vid=>`
+    <button class="tab ${vid.id===v.id?'active':''}" onclick="goToVideo('${vid.id}')">
+      <span class="dot" id="dot-${vid.id}" style="background:${statusColor(vid.status)}"></span>${escapeHtml(vid.name)}
+    </button>
+  `).join('');
+
+  const embed = driveEmbed(v.drive);
+  const videoHtml = embed
+    ? `<div class="video-frame"><iframe src="${embed}" allow="autoplay" allowfullscreen></iframe></div>`
+    : `<p class="subtitle">No se pudo leer el link de Drive.</p>`;
+
+  app.innerHTML = `
+    <div class="tabs">${tabs}</div>
+    <div class="layout">
+      <div class="col-video">
+        <div class="panel${v.status==='corregir'?' mode-corregir':''}">
+          ${videoHtml}
+          <div class="status-row">
+            <div class="video-name">${escapeHtml(v.name)}</div>
+            <select class="status-select" onchange="setVideoStatus('${v.id}', this.value)">
+              ${STATUSES.map(s=>`<option value="${s}" ${s===v.status?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="col-review">
+        ${reviewHtml(v)}
+      </div>
+    </div>
+  `;
+  applyCorrectMode(v.status);
+}
+
+/* ---------- manual save ---------- */
 async function manualSave(){
   const btn = document.getElementById('save-btn');
   const status = document.getElementById('save-status');
@@ -607,19 +924,10 @@ async function manualSave(){
     status.textContent = '✗ No se pudo guardar, intenta de nuevo';
   }
   btn.disabled = false;
-  setTimeout(()=>{ if(status) status.textContent=''; }, 3000);
+  setTimeout(()=>{ const s=document.getElementById('save-status'); if(s) s.textContent=''; }, 3000);
 }
 
-function updateGeneralComment(vid, val){
-  const v = videos.find(v=>v.id===vid);
-  v.generalComment = val; save(vid);
-}
-
-function updateVideoNote(vid, val){
-  const v = videos.find(v=>v.id===vid);
-  v.notesForToni = val; save(vid);
-}
-
+/* ---------- timestamp comments ---------- */
 let commentModalVid = null;
 
 function openCommentModal(vid){
@@ -643,24 +951,14 @@ function addTimeComment(){
   const v = videos.find(v=>v.id===commentModalVid);
   if(!v) return;
   if(!Array.isArray(v.timestampComments)) v.timestampComments = [];
-  v.timestampComments.push({
-    id: 'c'+Date.now(),
-    time, type, comment,
-    status: 'pendiente'
-  });
+  v.timestampComments.push({ id:'c'+Date.now(), time, type, comment, status:'pendiente' });
   const vid = v.id;
   closeCommentModal();
   save(vid);
-  render();
+  refreshTc();
 }
 
-function toggleTcStatus(vid, cid){
-  const v = videos.find(v=>v.id===vid);
-  const c = v.timestampComments.find(c=>c.id===cid);
-  c.status = c.status==='resuelto' ? 'pendiente' : 'resuelto';
-  save(vid); render();
-}
-
+/* ---------- audio notes ---------- */
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
@@ -684,7 +982,7 @@ async function toggleRecording(vid){
     };
     mediaRecorder.start();
     isRecording = true;
-    render();
+    refreshAudio();
   }catch(e){
     alert('No se pudo acceder al micrófono. Revisa los permisos del navegador para este sitio.');
   }
@@ -701,7 +999,7 @@ function blobToBase64(blob){
 
 async function uploadAudioNote(vid, blob){
   isRecording = false;
-  render();
+  refreshAudio();
   const status = document.getElementById('audio-status');
   if(status) status.textContent = 'Subiendo…';
   try{
@@ -717,14 +1015,14 @@ async function uploadAudioNote(vid, blob){
     if(!Array.isArray(v.audioNotes)) v.audioNotes = [];
     v.audioNotes.push({ id: 'a'+Date.now(), driveId: data.driveId });
     await save(vid);
-    render();
-    const status2 = document.getElementById('audio-status');
-    if(status2) status2.textContent = '✓ Nota guardada';
-    setTimeout(()=>{ const s = document.getElementById('audio-status'); if(s) s.textContent=''; }, 3000);
+    refreshAudio();
+    const s2 = document.getElementById('audio-status');
+    if(s2) s2.textContent = '✓ Nota guardada';
+    setTimeout(()=>{ const s=document.getElementById('audio-status'); if(s) s.textContent=''; }, 3000);
   }catch(e){
     console.error(e);
     alert('No se pudo subir la nota de audio. Intenta de nuevo.');
-    render();
+    refreshAudio();
   }
 }
 
@@ -732,31 +1030,21 @@ async function deleteAudioNote(vid, noteId, driveId){
   if(!confirm('¿Eliminar esta nota de audio? No se puede deshacer.')) return;
   const v = videos.find(v=>v.id===vid);
   v.audioNotes = v.audioNotes.filter(a => a.id !== noteId);
-  render();
-  try{
-    await save(vid);
-  }catch(e){
-    console.error('No se pudo actualizar el video', e);
-  }
+  refreshAudio();
+  try{ await save(vid); }catch(e){ console.error(e); }
   try{
     await fetch(API_URL, {
       method: 'POST',
       headers: {'Content-Type': 'text/plain;charset=utf-8'},
       body: JSON.stringify({ action: 'deleteAudio', driveId })
     });
-  }catch(e){
-    console.error('No se pudo borrar el archivo de Drive', e);
-  }
+  }catch(e){ console.error('No se pudo borrar el archivo de Drive', e); }
 }
 
 function escapeHtml(s){
   const d = document.createElement('div');
   d.innerText = s || '';
   return d.innerHTML;
-}
-
-function cleanCopyText(t){
-  return (t || '').replace(/<br\s*\/?>/gi, '\n');
 }
 
 load();
