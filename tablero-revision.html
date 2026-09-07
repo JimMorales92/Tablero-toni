@@ -140,6 +140,17 @@ button{font-family:inherit;cursor:pointer;}
 .dash-dl-all:hover{background:var(--green);color:#1E2A1B;}
 .dash-head .dash-dl-all + .dash-count{margin-left:10px;}
 
+.guion-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.btn-srt{
+  background:var(--panel-raised);
+  border:1px solid var(--brass-dim);
+  color:var(--brass);
+  border-radius:7px;
+  font-size:12px;
+  padding:4px 10px;
+}
+.btn-srt:hover{background:var(--brass);color:#241D14;}
+
 /* ---------- modo solo lectura ---------- */
 body.readonly #owner-actions,
 body.readonly .save-bar,
@@ -528,6 +539,7 @@ let activeId = null;
 let copyEditMode = false;
 let dashOpen = true;
 const READONLY = new URLSearchParams(location.search).has('lectura');
+let srtTimes = [];
 
 function statusColor(s){
   if(s==='sin revisar') return 'var(--grey)';
@@ -623,16 +635,63 @@ async function save(vid){
 function parseSrt(content){
   const normalized = content.replace(/\r/g, '');
   const blocks = normalized.split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
-  const lines = [];
+  const out = [];
   blocks.forEach(block=>{
     const rows = block.split('\n');
     let i = 0;
     if(/^\d+$/.test(rows[0].trim())) i = 1;
-    if(rows[i] && rows[i].includes('-->')) i += 1;
+    let times = '';
+    if(rows[i] && rows[i].includes('-->')){ times = rows[i].trim(); i += 1; }
     const text = rows.slice(i).join(' ').replace(/<[^>]+>/g,'').trim();
-    if(text) lines.push(text);
+    if(text) out.push({ text, times });
   });
-  return lines;
+  return out;
+}
+
+/* ---------- exportar SRT corregido ---------- */
+function secondsToSrt(sec){
+  const h = String(Math.floor(sec/3600)).padStart(2,'0');
+  const m = String(Math.floor((sec%3600)/60)).padStart(2,'0');
+  const s2 = String(Math.floor(sec%60)).padStart(2,'0');
+  const ms = String(Math.round((sec%1)*1000)).padStart(3,'0');
+  return h+':'+m+':'+s2+','+ms;
+}
+
+function srtToSeconds(t){
+  const m = (t||'').match(/(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/);
+  if(!m) return null;
+  return (+m[1])*3600 + (+m[2])*60 + (+m[3]) + (+m[4])/1000;
+}
+
+function buildSrt(v){
+  let cursor = 0;
+  const DUR = 2.2;
+  return v.scriptLines.map((l, i)=>{
+    let times = l.times;
+    if(times){
+      const fin = srtToSeconds((times.split('-->')[1] || '').trim());
+      if(fin !== null) cursor = fin;
+    }else{
+      times = secondsToSrt(cursor) + ' --> ' + secondsToSrt(cursor + DUR);
+      cursor += DUR;
+    }
+    const texto = (l.comment && l.comment.trim()) ? l.comment.trim() : l.text;
+    return (i+1) + '\n' + times + '\n' + texto;
+  }).join('\n\n') + '\n';
+}
+
+function downloadSrt(vid){
+  const v = videos.find(v=>v.id===vid);
+  if(!v || !v.scriptLines.length){ alert('Este video no tiene guion.'); return; }
+  const contenido = buildSrt(v);
+  const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = v.name.replace(/[^\w\-]+/g,'_') + '_corregido.srt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
 }
 
 function handleSrtUpload(input){
@@ -640,12 +699,13 @@ function handleSrtUpload(input){
   if(!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const lines = parseSrt(e.target.result);
-    if(!lines.length){
+    const parsed = parseSrt(e.target.result);
+    if(!parsed.length){
       alert('No se pudo leer el .srt, revisa el archivo o escribe el guion manualmente.');
       return;
     }
-    document.getElementById('f-script').value = lines.join('\n');
+    srtTimes = parsed.map(x => x.times);
+    document.getElementById('f-script').value = parsed.map(x => x.text).join('\n');
   };
   reader.onerror = () => alert('No se pudo leer el archivo.');
   reader.readAsText(file);
@@ -657,6 +717,7 @@ function closeModal(){
   document.getElementById('modalOverlay').style.display='none';
   ['f-name','f-drive','f-driveHD','f-script','f-copy'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-srt').value='';
+  srtTimes = [];
 }
 
 function addVideo(){
@@ -668,7 +729,7 @@ function addVideo(){
   if(!name || !drive){ alert('Falta el nombre o el link del video'); return; }
 
   const lines = scriptRaw.split('\n').map(t=>t.trim()).filter(Boolean).map((text,i)=>({
-    id: 'l'+i+'_'+Date.now(), text, status:'pendiente', comment:''
+    id: 'l'+i+'_'+Date.now(), text, status:'pendiente', comment:'', times: srtTimes[i] || ''
   }));
 
   const video = {
@@ -951,7 +1012,10 @@ function reviewHtml(v){
         <textarea class="note-text" placeholder="Cualquier cosa que quieras dejarle escrita…" oninput="updateVideoNote('${v.id}', this.value)">${escapeHtml(cleanCopyText(v.notesForToni))}</textarea>
       </div>
 
-      <h2 class="section-title">Guion</h2>
+      <div class="guion-head">
+        <h2 class="section-title" style="margin:0;">Guion</h2>
+        <button class="btn-srt" onclick="downloadSrt('${v.id}')">↓ SRT corregido</button>
+      </div>
       ${lines || '<p class="subtitle">Sin líneas de guion.</p>'}
 
       <div class="copy-block" id="copy-area">
