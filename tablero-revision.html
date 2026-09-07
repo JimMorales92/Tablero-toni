@@ -140,6 +140,28 @@ button{font-family:inherit;cursor:pointer;}
 .dash-dl-all:hover{background:var(--green);color:#1E2A1B;}
 .dash-head .dash-dl-all + .dash-count{margin-left:10px;}
 
+/* ---------- modo solo lectura ---------- */
+body.readonly #owner-actions,
+body.readonly .save-bar,
+body.readonly .btn-record,
+body.readonly .btn-delete-audio,
+body.readonly .note-block,
+body.readonly .tc-area-add,
+body.readonly .copy-edit-btn{display:none !important;}
+body.readonly .pill{pointer-events:none;opacity:.85;}
+body.readonly textarea{opacity:.9;cursor:default;}
+body.readonly select{opacity:.9;}
+.readonly-badge{
+  display:none;
+  background:var(--panel-raised);
+  border:1px solid var(--line);
+  color:var(--text-dim);
+  border-radius:20px;
+  padding:4px 12px;
+  font-size:12px;
+}
+body.readonly .readonly-badge{display:inline-block;}
+
 .tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:18px;border-bottom:1px solid var(--line);}
 .tab{
   flex:0 0 auto;
@@ -412,8 +434,9 @@ textarea.note-text::placeholder{color:var(--grey);}
     <div>
       <h1>Revisión — Toni Sax</h1>
       <p class="subtitle">Video, guion y copy de cada entrega, en un solo lugar</p>
+      <span class="readonly-badge" style="margin-top:6px;">Solo lectura</span>
     </div>
-    <div style="display:flex;gap:8px;">
+    <div id="owner-actions" style="display:flex;gap:8px;">
       <button class="btn-cancel" onclick="openHdModal()">Links HD</button>
       <button class="btn-add" onclick="openModal()">Agregar video</button>
     </div>
@@ -504,6 +527,7 @@ let videos = [];
 let activeId = null;
 let copyEditMode = false;
 let dashOpen = true;
+const READONLY = new URLSearchParams(location.search).has('lectura');
 
 function statusColor(s){
   if(s==='sin revisar') return 'var(--grey)';
@@ -579,6 +603,7 @@ async function load(){
 }
 
 async function save(vid){
+  if(READONLY) return;
   const id = vid || activeId;
   const v = videos.find(v=>v.id===id);
   if(!v) return;
@@ -715,6 +740,13 @@ function setVideoStatus(id, status){
   applyCorrectMode(status);
   renderDashboard();
   save(id);
+}
+
+function applyReadonly(){
+  if(!READONLY) return;
+  document.body.classList.add('readonly');
+  document.querySelectorAll('textarea').forEach(t=>{ t.readOnly = true; });
+  document.querySelectorAll('select').forEach(sel=>{ sel.disabled = true; });
 }
 
 function statusModeClass(status){
@@ -950,9 +982,9 @@ function reviewHtml(v){
 function copyHtml(v){
   const body = copyEditMode
     ? `<textarea class="copy-text" oninput="updateVideoCopy('${v.id}', this.value)">${escapeHtml(cleanCopyText(v.copy))}</textarea>
-       <button class="btn-cancel" onclick="setCopyEdit(false)">Listo</button>`
+       <button class="btn-cancel copy-edit-btn" onclick="setCopyEdit(false)">Listo</button>`
     : `<div class="copy-display">${escapeHtml(cleanCopyText(v.copy)) || '<span class="subtitle">Sin copy todavía.</span>'}</div>
-       <button class="btn-cancel" onclick="setCopyEdit(true)">Editar</button>`;
+       <button class="btn-cancel copy-edit-btn" onclick="setCopyEdit(true)">Editar</button>`;
   return `
     <h2 class="section-title">Copy</h2>
     ${body}
@@ -967,7 +999,7 @@ function setCopyEdit(on){
   copyEditMode = on;
   const v = videos.find(v=>v.id===activeId);
   const el = document.getElementById('copy-area');
-  if(el && v) el.innerHTML = copyHtml(v);
+  if(el && v){ el.innerHTML = copyHtml(v); applyReadonly(); }
 }
 
 function tcHtml(v){
@@ -986,7 +1018,7 @@ function tcHtml(v){
   return `
     <h2 class="section-title">Comentarios por momento</h2>
     ${rows}
-    <button class="btn-cancel" style="margin-top:10px;" onclick="openCommentModal('${v.id}')">Agregar comentario</button>
+    <button class="btn-cancel tc-area-add" style="margin-top:10px;" onclick="openCommentModal('${v.id}')">Agregar comentario</button>
   `;
 }
 
@@ -1012,12 +1044,12 @@ function audioHtml(v){
 function refreshTc(){
   const v = videos.find(v=>v.id===activeId);
   const el = document.getElementById('tc-area');
-  if(el && v) el.innerHTML = tcHtml(v);
+  if(el && v){ el.innerHTML = tcHtml(v); applyReadonly(); }
 }
 function refreshAudio(){
   const v = videos.find(v=>v.id===activeId);
   const el = document.getElementById('audio-area');
-  if(el && v) el.innerHTML = audioHtml(v);
+  if(el && v){ el.innerHTML = audioHtml(v); applyReadonly(); }
 }
 
 /* ---------- full render ---------- */
@@ -1064,6 +1096,7 @@ function render(){
     </div>
   `;
   applyCorrectMode(v.status);
+  applyReadonly();
 }
 
 /* ---------- manual save ---------- */
