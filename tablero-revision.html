@@ -448,6 +448,7 @@ textarea.note-text::placeholder{color:var(--grey);}
       <span class="readonly-badge" style="margin-top:6px;">Solo lectura</span>
     </div>
     <div id="owner-actions" style="display:flex;gap:8px;">
+      <button class="btn-cancel" onclick="exportCorrecciones()">↓ Correcciones</button>
       <button class="btn-cancel" onclick="openHdModal()">Links HD</button>
       <button class="btn-add" onclick="openModal()">Agregar video</button>
     </div>
@@ -655,6 +656,81 @@ function secondsToSrt(sec){
   const s2 = String(Math.floor(sec%60)).padStart(2,'0');
   const ms = String(Math.round((sec%1)*1000)).padStart(3,'0');
   return h+':'+m+':'+s2+','+ms;
+}
+
+
+/* ---------- exportar correcciones para el generador de guiones ---------- */
+function estadoLinea(st){
+  if(st === 'aprobado') return 'aprobado';
+  if(st === 'cambio solicitado') return 'cambio solicitado';
+  return 'sin marcar';
+}
+
+function exportCorrecciones(){
+  if(!videos.length){ alert('Todavía no hay videos.'); return; }
+
+  const hoy = new Date().toISOString().slice(0,10);
+  let md = '# Correcciones de Toni — guiones\n\n';
+  md += 'Exportado el ' + hoy + ' desde el tablero de revisión.\n\n';
+  md += 'Cada línea del guion aparece con el texto que se usó y, si Toni pidió un cambio, ';
+  md += 'lo que escribió en su comentario. Sirve como referencia de qué acepta y qué corrige.\n\n';
+  md += '---\n\n';
+
+  videos.forEach(v=>{
+    md += '## ' + v.name + '\n\n';
+    md += '- Estado del video: **' + v.status + '**\n\n';
+
+    if(v.scriptLines.length){
+      md += '### Guion\n\n';
+      v.scriptLines.forEach((l,i)=>{
+        const n = String(i+1).padStart(2,'0');
+        md += '**' + n + '.** ' + (l.text || '') + '\n';
+        md += '- Veredicto: ' + estadoLinea(l.status) + '\n';
+        if(l.comment && l.comment.trim()){
+          md += '- Comentario de Toni: ' + l.comment.trim().replace(/\n/g,' ') + '\n';
+        }
+        md += '\n';
+      });
+    }
+
+    if(v.copy && v.copy.trim()){
+      md += '### Copy\n\n';
+      md += '```\n' + v.copy.trim() + '\n```\n\n';
+      md += '- Veredicto: ' + estadoLinea(v.copyStatus) + '\n';
+      if(v.copyComment && v.copyComment.trim()){
+        md += '- Comentario de Toni: ' + v.copyComment.trim().replace(/\n/g,' ') + '\n';
+      }
+      md += '\n';
+    }
+
+    if(v.timestampComments && v.timestampComments.length){
+      md += '### Comentarios por momento\n\n';
+      v.timestampComments.forEach(c=>{
+        const partes = [];
+        if(c.time) partes.push(c.time);
+        if(c.type) partes.push(c.type);
+        const cab = partes.length ? '(' + partes.join(' · ') + ') ' : '';
+        md += '- ' + cab + (c.comment || '').replace(/\n/g,' ') + '\n';
+      });
+      md += '\n';
+    }
+
+    if(v.generalComment && v.generalComment.trim()){
+      md += '### Comentario general\n\n';
+      md += v.generalComment.trim() + '\n\n';
+    }
+
+    md += '---\n\n';
+  });
+
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'correcciones-toni-' + hoy + '.md';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
 }
 
 function srtToSeconds(t){
