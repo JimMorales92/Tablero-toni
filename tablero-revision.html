@@ -29,6 +29,7 @@ body{
 }
 body.mode-corregir{background:#3A211A;}
 body.mode-aprobado{background:#1E2A1C;}
+body.mode-subido{background:#1B242C;}
 
 .wrap{max-width:1240px;margin:0 auto;padding:24px 20px 60px;}
 
@@ -77,7 +78,7 @@ button{font-family:inherit;cursor:pointer;}
 
 .dash{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(4,1fr);
   gap:10px;
   margin-bottom:18px;
 }
@@ -89,6 +90,35 @@ button{font-family:inherit;cursor:pointer;}
 }
 .dash-col.is-corregir{border-color:var(--red-flag);}
 .dash-col.is-aprobado{border-color:var(--green);}
+.dash-col.is-subido{border-color:var(--blue);}
+.dash-up{
+  flex:0 0 auto;
+  background:var(--panel-raised);
+  border:1px solid var(--blue);
+  color:var(--blue);
+  border-radius:5px;
+  font-size:10.5px;
+  padding:1px 7px;
+  margin-left:4px;
+}
+.dash-up:hover{background:var(--blue);color:#16202A;}
+.dash-undo{
+  flex:0 0 auto;
+  background:transparent;
+  border:1px solid var(--line);
+  color:var(--text-dim);
+  border-radius:5px;
+  font-size:11px;
+  padding:1px 6px;
+  margin-left:4px;
+}
+.dash-undo:hover{color:var(--green);border-color:var(--green);}
+.dash-date{
+  flex:0 0 auto;
+  font-size:10.5px;
+  color:var(--blue);
+  white-space:nowrap;
+}
 .dash-head{
   display:flex;align-items:center;gap:7px;
   font-size:12px;color:var(--text-dim);
@@ -126,6 +156,20 @@ button{font-family:inherit;cursor:pointer;}
 }
 .dash-dl.off{border-color:var(--line);color:var(--grey);cursor:default;}
 .dash-empty{font-size:12px;color:var(--grey);}
+.dash-item.bajado .nm{color:var(--grey);}
+.dash-item.bajado:hover .nm{color:var(--text-dim);}
+.dash-tag{
+  flex:0 0 auto;
+  font-size:10px;
+  color:var(--grey);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:0 6px;
+  white-space:nowrap;
+}
+.dash-dl.pending{border-color:var(--green);color:var(--green);}
+.dash-dl.done{border-color:var(--line);color:var(--grey);}
+.dash-dl.done:hover{border-color:var(--green);color:var(--green);}
 .dash-dl-all{
   margin-left:auto;
   background:var(--panel-raised);
@@ -223,6 +267,14 @@ body.readonly .readonly-badge{display:inline-block;}
 .panel.mode-aprobado textarea,
 .panel.mode-aprobado .tc-time,
 .panel.mode-aprobado .pill{background:#1C2719;}
+.panel.mode-subido{
+  background:#1F2B34;
+  box-shadow:inset 0 0 0 2px var(--blue);
+}
+.panel.mode-subido .copy-display,
+.panel.mode-subido textarea,
+.panel.mode-subido .tc-time,
+.panel.mode-subido .pill{background:#1A2229;}
 .empty{color:var(--text-dim);text-align:center;padding:60px 20px;}
 .empty p{margin:0 0 14px;}
 
@@ -250,6 +302,18 @@ body.readonly .readonly-badge{display:inline-block;}
   margin-bottom:12px;
 }
 .mode-aprobado .approved-banner{display:block;}
+.uploaded-banner{
+  display:none;
+  background:var(--blue);
+  border:none;
+  color:#101A21;
+  border-radius:8px;
+  padding:10px 14px;
+  font-size:13px;
+  font-weight:600;
+  margin-bottom:12px;
+}
+.mode-subido .uploaded-banner{display:block;}
 
 .video-frame{
   position:relative;
@@ -435,6 +499,7 @@ textarea.note-text::placeholder{color:var(--grey);}
   }
   body.mode-corregir .col-video{background:#3A211A;}
   body.mode-aprobado .col-video{background:#1E2A1C;}
+  body.mode-subido .col-video{background:#1B242C;}
   .col-review{max-height:none;overflow-y:visible;padding-right:0;}
   .video-frame{height:52vh;}
 }
@@ -534,7 +599,7 @@ textarea.note-text::placeholder{color:var(--grey);}
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSnwOwdpQTZAmKCLmpynEnSCvzuhzC_jv7Afl3NTQvtP4jecCG3wNZyhUArDPsrpRUpg/exec';
-const STATUSES = ['sin revisar','corregir','aprobado'];
+const STATUSES = ['sin revisar','corregir','aprobado','subido'];
 let videos = [];
 let activeId = null;
 let copyEditMode = false;
@@ -546,6 +611,7 @@ function statusColor(s){
   if(s==='sin revisar') return 'var(--grey)';
   if(s==='corregir') return 'var(--red-flag)';
   if(s==='aprobado') return 'var(--green)';
+  if(s==='subido') return 'var(--blue)';
   return 'var(--grey)';
 }
 
@@ -601,6 +667,8 @@ async function load(){
     if(v.generalComment === undefined) v.generalComment = '';
     if(v.notesForToni === undefined) v.notesForToni = '';
     if(v.driveHD === undefined) v.driveHD = '';
+    if(v.uploadedAt === undefined) v.uploadedAt = '';
+    if(v.downloadedAt === undefined) v.downloadedAt = '';
     if(!Array.isArray(v.scriptLines)) v.scriptLines = [];
     if(!Array.isArray(v.timestampComments)) v.timestampComments = [];
     if(!Array.isArray(v.audioNotes)) v.audioNotes = [];
@@ -819,7 +887,9 @@ function addVideo(){
     generalComment: '',
     notesForToni: '',
     timestampComments: [],
-    audioNotes: []
+    audioNotes: [],
+    uploadedAt: '',
+    downloadedAt: ''
   };
   videos.push(video);
   activeId = video.id;
@@ -872,6 +942,8 @@ function setVideoStatus(id, status){
   const v = videos.find(v=>v.id===id);
   if(!v) return;
   v.status = status;
+  if(status === 'subido' && !v.uploadedAt) v.uploadedAt = new Date().toISOString();
+  if(status !== 'subido') v.uploadedAt = '';
   const dot = document.getElementById('dot-'+id);
   if(dot) dot.style.background = statusColor(status);
   applyCorrectMode(status);
@@ -889,6 +961,7 @@ function applyReadonly(){
 function statusModeClass(status){
   if(status === 'corregir') return ' mode-corregir';
   if(status === 'aprobado') return ' mode-aprobado';
+  if(status === 'subido') return ' mode-subido';
   return '';
 }
 
@@ -896,11 +969,14 @@ function applyCorrectMode(status){
   const on = status === 'corregir';
   const corr = status === 'corregir';
   const apr  = status === 'aprobado';
+  const sub  = status === 'subido';
   document.body.classList.toggle('mode-corregir', corr);
   document.body.classList.toggle('mode-aprobado', apr);
+  document.body.classList.toggle('mode-subido', sub);
   document.querySelectorAll('.panel').forEach(p=>{
     p.classList.toggle('mode-corregir', corr);
     p.classList.toggle('mode-aprobado', apr);
+    p.classList.toggle('mode-subido', sub);
   });
 }
 
@@ -982,7 +1058,8 @@ function renderDashboard(){
   const groups = [
     { key:'sin revisar', label:'Sin revisar', cls:'' },
     { key:'corregir',    label:'Corregir',    cls:'is-corregir' },
-    { key:'aprobado',    label:'Aprobados',   cls:'is-aprobado' }
+    { key:'aprobado',    label:'Aprobados',   cls:'is-aprobado' },
+    { key:'subido',      label:'Subidos',     cls:'is-subido' }
   ];
 
   const full = '<div class="dash">' + groups.map(g=>{
@@ -990,14 +1067,27 @@ function renderDashboard(){
     const rows = items.length
       ? items.map(v=>{
           const dl = driveDownload(v.driveHD);
-          const btn = g.key==='aprobado'
-            ? (dl
-                ? '<a class="dash-dl" href="'+dl+'" target="_blank" onclick="event.stopPropagation()">HD ↓</a>'
+          let btn = '';
+          if(g.key==='aprobado'){
+            const bajado = !!v.downloadedAt;
+            btn = (dl
+                ? '<a class="dash-dl'+(bajado?' done':' pending')+'" href="'+dl+'" target="_blank" title="'
+                  + (bajado ? 'Ya descargado' : 'Sin descargar todavía')
+                  + '" onclick="event.stopPropagation();marcarDescargado(\''+v.id+'\')">'
+                  + (bajado ? '✓ HD' : 'HD ↓') + '</a>'
                 : '<span class="dash-dl off" title="Sin link HD">—</span>')
-            : '';
-          return '<button class="dash-item" onclick="goToVideo(\''+v.id+'\')">'
+              + '<button class="dash-up" title="Marcar como subido a Instagram" onclick="event.stopPropagation();marcarSubido(\''+v.id+'\')">Subido</button>';
+          }else if(g.key==='subido'){
+            const f = v.uploadedAt ? new Date(v.uploadedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}) : '';
+            btn = (f ? '<span class="dash-date">'+f+'</span>' : '')
+                + '<button class="dash-undo" title="Regresar a aprobado" onclick="event.stopPropagation();desmarcarSubido(\''+v.id+'\')">↩</button>';
+          }
+          const opaco = (g.key==='aprobado' && v.downloadedAt) ? ' bajado' : '';
+          const leyenda = (g.key==='aprobado' && v.downloadedAt)
+            ? '<span class="dash-tag">Descargado</span>' : '';
+          return '<button class="dash-item'+opaco+'" onclick="goToVideo(\''+v.id+'\')">'
                + '<span class="dot" style="background:'+statusColor(g.key)+'"></span>'
-               + '<span class="nm">'+escapeHtml(v.name)+'</span>'+btn+'</button>';
+               + '<span class="nm">'+escapeHtml(v.name)+'</span>'+leyenda+btn+'</button>';
         }).join('')
       : '<span class="dash-empty">Ninguno</span>';
     const head = (g.key==='aprobado' && items.some(v=>driveDownload(v.driveHD)))
@@ -1052,8 +1142,49 @@ function downloadAllApproved(){
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      marcarDescargado(v.id);
     }, i * 900);
   });
+}
+
+function marcarDescargado(id){
+  const v = videos.find(v=>v.id===id);
+  if(!v || v.downloadedAt) return;
+  v.downloadedAt = new Date().toISOString();
+  renderDashboard();
+  save(id);
+}
+
+function marcarSubido(id){
+  const v = videos.find(v=>v.id===id);
+  if(!v) return;
+  v.status = 'subido';
+  v.uploadedAt = new Date().toISOString();
+  renderDashboard();
+  if(v.id === activeId){
+    const dot = document.getElementById('dot-'+id);
+    if(dot) dot.style.background = statusColor('subido');
+    const sel = document.querySelector('.status-select');
+    if(sel) sel.value = 'subido';
+    applyCorrectMode('subido');
+  }
+  save(id);
+}
+
+function desmarcarSubido(id){
+  const v = videos.find(v=>v.id===id);
+  if(!v) return;
+  v.status = 'aprobado';
+  v.uploadedAt = '';
+  renderDashboard();
+  if(v.id === activeId){
+    const dot = document.getElementById('dot-'+id);
+    if(dot) dot.style.background = statusColor('aprobado');
+    const sel = document.querySelector('.status-select');
+    if(sel) sel.value = 'aprobado';
+    applyCorrectMode('aprobado');
+  }
+  save(id);
 }
 
 function goToVideo(id){
@@ -1082,6 +1213,7 @@ function reviewHtml(v){
     <div class="panel${statusModeClass(v.status)}">
       <div class="correct-banner">Este video está marcado para corregir.</div>
       <div class="approved-banner">Este video está aprobado.</div>
+      <div class="uploaded-banner">Este video ya está subido a Instagram.</div>
 
       <div class="note-block">
         <label class="note-label">Notas para Toni</label>
@@ -1199,7 +1331,7 @@ function render(){
 
   if(!videos.length){
     app.innerHTML = `<div class="panel"><div class="empty"><p>Todavía no hay videos en revisión.</p><button class="btn-add" onclick="openModal()">Agregar el primero</button></div></div>`;
-    document.body.classList.remove('mode-corregir','mode-aprobado');
+    document.body.classList.remove('mode-corregir','mode-aprobado','mode-subido');
     return;
   }
   const v = videos.find(v=>v.id===activeId) || videos[0];
