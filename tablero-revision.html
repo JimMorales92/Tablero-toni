@@ -327,6 +327,19 @@ body.readonly .readonly-badge{display:inline-block;}
   overflow:hidden;
 }
 .video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+.hd-badge{
+  position:absolute;
+  top:8px;left:8px;
+  background:rgba(0,0,0,.6);
+  border:1px solid var(--green);
+  color:var(--green);
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:.5px;
+  border-radius:5px;
+  padding:1px 7px;
+  pointer-events:none;
+}
 
 .status-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
 .video-name{font-family:'Fraunces',serif;font-size:18px;font-weight:500;}
@@ -626,6 +639,12 @@ function driveEmbed(url){
 function driveDownload(url){
   const id = driveFileId(url);
   return id ? 'https://drive.google.com/uc?export=download&id='+id : null;
+}
+
+function fuenteVideo(v){
+  const esFinal = (v.status === 'aprobado' || v.status === 'subido');
+  if(esFinal && driveEmbed(v.driveHD)) return { url: v.driveHD, hd: true };
+  return { url: v.drive, hd: false };
 }
 
 function migrateStatus(s){
@@ -932,6 +951,8 @@ async function saveHdLinks(){
   });
   closeHdModal();
   renderDashboard();
+  const activo = videos.find(v=>v.id===activeId);
+  if(activo) refrescarFuenteVideo(activo);
   for(const id of changed){
     try{ await save(id); }catch(e){ console.error('No se pudo guardar el link HD de', id, e); }
   }
@@ -944,6 +965,7 @@ function setVideoStatus(id, status){
   v.status = status;
   if(status === 'subido' && !v.uploadedAt) v.uploadedAt = new Date().toISOString();
   if(status !== 'subido') v.uploadedAt = '';
+  refrescarFuenteVideo(v);
   const dot = document.getElementById('dot-'+id);
   if(dot) dot.style.background = statusColor(status);
   applyCorrectMode(status);
@@ -1147,6 +1169,26 @@ function downloadAllApproved(){
   });
 }
 
+function refrescarFuenteVideo(v){
+  if(!v || v.id !== activeId) return;
+  const iframe = document.getElementById('video-iframe');
+  if(!iframe) return;
+  const nueva = driveEmbed(fuenteVideo(v).url);
+  if(nueva && iframe.src !== nueva){
+    iframe.src = nueva;
+    const marco = iframe.parentElement;
+    const badge = marco.querySelector('.hd-badge');
+    if(fuenteVideo(v).hd && !badge){
+      const sp = document.createElement('span');
+      sp.className = 'hd-badge';
+      sp.textContent = 'HD';
+      marco.appendChild(sp);
+    }else if(!fuenteVideo(v).hd && badge){
+      badge.remove();
+    }
+  }
+}
+
 function marcarDescargado(id){
   const v = videos.find(v=>v.id===id);
   if(!v || v.downloadedAt) return;
@@ -1160,6 +1202,7 @@ function marcarSubido(id){
   if(!v) return;
   v.status = 'subido';
   v.uploadedAt = new Date().toISOString();
+  refrescarFuenteVideo(v);
   renderDashboard();
   if(v.id === activeId){
     const dot = document.getElementById('dot-'+id);
@@ -1176,6 +1219,7 @@ function desmarcarSubido(id){
   if(!v) return;
   v.status = 'aprobado';
   v.uploadedAt = '';
+  refrescarFuenteVideo(v);
   renderDashboard();
   if(v.id === activeId){
     const dot = document.getElementById('dot-'+id);
@@ -1343,9 +1387,12 @@ function render(){
     </button>
   `).join('');
 
-  const embed = driveEmbed(v.drive);
+  const fuente = fuenteVideo(v);
+  const embed = driveEmbed(fuente.url);
   const videoHtml = embed
-    ? `<div class="video-frame"><iframe src="${embed}" allow="autoplay" allowfullscreen></iframe></div>`
+    ? `<div class="video-frame"><iframe id="video-iframe" src="${embed}" allow="autoplay" allowfullscreen></iframe>
+         ${fuente.hd ? '<span class="hd-badge">HD</span>' : ''}
+       </div>`
     : `<p class="subtitle">No se pudo leer el link de Drive.</p>`;
 
   app.innerHTML = `
