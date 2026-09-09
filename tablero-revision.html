@@ -171,7 +171,6 @@ button{font-family:inherit;cursor:pointer;}
 .dash-dl.done{border-color:var(--line);color:var(--grey);}
 .dash-dl.done:hover{border-color:var(--green);color:var(--green);}
 .dash-dl-all{
-  margin-left:auto;
   background:var(--panel-raised);
   border:1px solid var(--green);
   color:var(--green);
@@ -182,6 +181,10 @@ button{font-family:inherit;cursor:pointer;}
   text-transform:none;
 }
 .dash-dl-all:hover{background:var(--green);color:#1E2A1B;}
+.dash-dl-all.alt{border-color:var(--line);color:var(--text-dim);}
+.dash-dl-all.alt:hover{background:var(--line);color:var(--text);}
+.dash-btns{display:flex;gap:5px;margin-left:auto;flex-wrap:wrap;}
+.dash-head .dash-btns + .dash-count{margin-left:10px;}
 .dash-head .dash-dl-all + .dash-count{margin-left:10px;}
 
 .guion-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
@@ -619,6 +622,11 @@ let copyEditMode = false;
 let dashOpen = true;
 const READONLY = new URLSearchParams(location.search).has('lectura');
 let srtTimes = [];
+
+function labelEstado(st){
+  if(st === 'aprobado') return 'corregido';
+  return st;
+}
 
 function statusColor(s){
   if(s==='sin revisar') return 'var(--grey)';
@@ -1080,7 +1088,7 @@ function renderDashboard(){
   const groups = [
     { key:'sin revisar', label:'Sin revisar', cls:'' },
     { key:'corregir',    label:'Corregir',    cls:'is-corregir' },
-    { key:'aprobado',    label:'Aprobados',   cls:'is-aprobado' },
+    { key:'aprobado',    label:'Corregidos',  cls:'is-aprobado' },
     { key:'subido',      label:'Subidos',     cls:'is-subido' }
   ];
 
@@ -1112,11 +1120,18 @@ function renderDashboard(){
                + '<span class="nm">'+escapeHtml(v.name)+'</span>'+leyenda+btn+'</button>';
         }).join('')
       : '<span class="dash-empty">Ninguno</span>';
-    const head = (g.key==='aprobado' && items.some(v=>driveDownload(v.driveHD)))
-      ? '<div class="dash-head">'+g.label
-        + '<button class="dash-dl-all" onclick="downloadAllApproved()">Descargar todos</button>'
-        + '<span class="dash-count">'+items.length+'</span></div>'
-      : '<div class="dash-head">'+g.label+'<span class="dash-count">'+items.length+'</span></div>';
+    let head;
+    if(g.key==='aprobado' && items.some(v=>driveDownload(v.driveHD))){
+      const pend = items.filter(v=>driveDownload(v.driveHD) && !v.downloadedAt).length;
+      head = '<div class="dash-head">'+g.label
+           + '<span class="dash-btns">'
+           + (pend ? '<button class="dash-dl-all" onclick="downloadPendientes()">Descargar pendientes ('+pend+')</button>' : '')
+           + '<button class="dash-dl-all alt" onclick="downloadAllApproved()">Descargar todos</button>'
+           + '</span>'
+           + '<span class="dash-count">'+items.length+'</span></div>';
+    }else{
+      head = '<div class="dash-head">'+g.label+'<span class="dash-count">'+items.length+'</span></div>';
+    }
     return '<div class="dash-col '+g.cls+'">'
          + head
          + '<div class="dash-items">'+rows+'</div></div>';
@@ -1142,6 +1157,31 @@ function renderDashboard(){
 function toggleDashboard(){
   dashOpen = !dashOpen;
   renderDashboard();
+}
+
+function descargarLote(lista, etiqueta){
+  if(!lista.length){ alert('No hay videos '+etiqueta+' para descargar.'); return; }
+  let msg = 'Se van a descargar '+lista.length+' video(s) en HD.';
+  msg += '\n\nEl navegador puede pedirte permiso para descargar varios archivos a la vez — acéptalo.';
+  if(!confirm(msg)) return;
+  lista.forEach((v, i) => {
+    setTimeout(() => {
+      const a = document.createElement('a');
+      a.href = driveDownload(v.driveHD);
+      a.download = '';
+      a.target = '_blank';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      marcarDescargado(v.id);
+    }, i * 900);
+  });
+}
+
+function downloadPendientes(){
+  const pend = videos.filter(v => v.status==='aprobado' && driveDownload(v.driveHD) && !v.downloadedAt);
+  descargarLote(pend, 'pendientes');
 }
 
 function downloadAllApproved(){
@@ -1256,7 +1296,7 @@ function reviewHtml(v){
   return `
     <div class="panel${statusModeClass(v.status)}">
       <div class="correct-banner">Este video está marcado para corregir.</div>
-      <div class="approved-banner">Este video está aprobado.</div>
+      <div class="approved-banner">Este video ya está corregido.</div>
       <div class="uploaded-banner">Este video ya está subido a Instagram.</div>
 
       <div class="note-block">
@@ -1404,7 +1444,7 @@ function render(){
           <div class="status-row">
             <div class="video-name">${escapeHtml(v.name)}</div>
             <select class="status-select" onchange="setVideoStatus('${v.id}', this.value)">
-              ${STATUSES.map(s=>`<option value="${s}" ${s===v.status?'selected':''}>${s}</option>`).join('')}
+              ${STATUSES.map(s=>`<option value="${s}" ${s===v.status?'selected':''}>${labelEstado(s)}</option>`).join('')}
             </select>
           </div>
         </div>
