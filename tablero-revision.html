@@ -54,6 +54,46 @@ button{font-family:inherit;cursor:pointer;}
 }
 .btn-add:hover{background:#DBB05C;}
 
+.meses-bar{
+  display:flex;gap:6px;flex-wrap:wrap;
+  margin-bottom:14px;
+}
+.mes-chip{
+  background:transparent;
+  border:1px solid var(--line);
+  color:var(--text-dim);
+  border-radius:20px;
+  padding:5px 13px;
+  font-size:12.5px;
+}
+.mes-chip:hover{color:var(--brass);border-color:var(--brass-dim);}
+.mes-chip.active{
+  background:var(--brass);
+  border-color:var(--brass);
+  color:#241D14;
+  font-weight:600;
+}
+.mes-n{opacity:.7;font-size:11px;margin-left:3px;}
+.mes-chip.nuevo{border-style:dashed;color:var(--brass-dim);}
+.mes-chip.nuevo:hover{color:var(--brass);border-color:var(--brass);}
+body.readonly .mes-chip.nuevo{display:none;}
+.mes-row{
+  display:flex;align-items:center;gap:8px;
+  margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--line);
+}
+.mes-row label{font-size:12px;color:var(--text-dim);}
+.mes-input{
+  background:var(--panel-raised);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:7px;
+  padding:5px 9px;
+  font-size:12.5px;
+  font-family:inherit;
+}
+body.readonly .mes-row{display:none;}
+
 /* ---------- dashboard ---------- */
 .dash-bar{
   display:flex;align-items:center;gap:14px;
@@ -535,6 +575,7 @@ textarea.note-text::placeholder{color:var(--grey);}
     </div>
   </header>
 
+  <div id="meses"></div>
   <div id="dashboard"></div>
   <div id="app"><div class="loading">Cargando…</div></div>
 </div>
@@ -545,6 +586,10 @@ textarea.note-text::placeholder{color:var(--grey);}
     <div class="field">
       <label>Nombre del video</label>
       <input id="f-name" type="text" placeholder="Ej. Reel 12 — jazz challenge">
+    </div>
+    <div class="field">
+      <label>Mes de la entrega</label>
+      <input id="f-mes" type="month">
     </div>
     <div class="field">
       <label>Link de Drive del video en baja calidad</label>
@@ -620,8 +665,41 @@ let videos = [];
 let activeId = null;
 let copyEditMode = false;
 let dashOpen = true;
+let mesActivo = 'todos';
+let mesesExtra = [];
 const READONLY = new URLSearchParams(location.search).has('lectura');
 let srtTimes = [];
+
+function mesDesdeId(id){
+  const m = String(id||'').match(/(\d{13})/);
+  const d = m ? new Date(Number(m[1])) : new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function mesLabel(clave){
+  if(!clave) return 'Sin mes';
+  const [a, m] = clave.split('-');
+  const nombres = ['enero','febrero','marzo','abril','mayo','junio',
+                   'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const nom = nombres[Number(m)-1] || m;
+  return nom.charAt(0).toUpperCase() + nom.slice(1) + ' ' + a;
+}
+
+function mesActual(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function mesesDisponibles(){
+  const set = new Set(videos.map(v=>v.mes).filter(Boolean));
+  mesesExtra.forEach(m=>set.add(m));
+  return Array.from(set).sort();
+}
+
+function videosDelMes(){
+  if(mesActivo === 'todos') return videos;
+  return videos.filter(v => v.mes === mesActivo);
+}
 
 function labelEstado(st){
   if(st === 'aprobado') return 'corregido';
@@ -696,6 +774,7 @@ async function load(){
     if(v.driveHD === undefined) v.driveHD = '';
     if(v.uploadedAt === undefined) v.uploadedAt = '';
     if(v.downloadedAt === undefined) v.downloadedAt = '';
+    if(!v.mes) v.mes = mesDesdeId(v.id);
     if(!Array.isArray(v.scriptLines)) v.scriptLines = [];
     if(!Array.isArray(v.timestampComments)) v.timestampComments = [];
     if(!Array.isArray(v.audioNotes)) v.audioNotes = [];
@@ -883,10 +962,14 @@ function handleSrtUpload(input){
 }
 
 /* ---------- add video ---------- */
-function openModal(){document.getElementById('modalOverlay').style.display='flex';}
+function openModal(){
+  const campo = document.getElementById('f-mes');
+  if(campo && !campo.value) campo.value = (mesActivo !== 'todos' ? mesActivo : mesActual());
+  document.getElementById('modalOverlay').style.display='flex';
+}
 function closeModal(){
   document.getElementById('modalOverlay').style.display='none';
-  ['f-name','f-drive','f-driveHD','f-script','f-copy'].forEach(id=>document.getElementById(id).value='');
+  ['f-name','f-drive','f-driveHD','f-script','f-copy','f-mes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-srt').value='';
   srtTimes = [];
 }
@@ -916,7 +999,8 @@ function addVideo(){
     timestampComments: [],
     audioNotes: [],
     uploadedAt: '',
-    downloadedAt: ''
+    downloadedAt: '',
+    mes: document.getElementById('f-mes').value || mesActual()
   };
   videos.push(video);
   activeId = video.id;
@@ -1081,9 +1165,57 @@ function pillLabel(status){
 }
 
 /* ---------- dashboard ---------- */
+function renderMeses(){
+  const el = document.getElementById('meses');
+  if(!el) return;
+  const meses = mesesDisponibles();
+
+  const chips = meses.map(m=>{
+    const n = videos.filter(v=>v.mes===m).length;
+    return '<button class="mes-chip'+(mesActivo===m?' active':'')+'" onclick="setMes(\''+m+'\')">'
+         + mesLabel(m)+' <span class="mes-n">'+n+'</span></button>';
+  }).join('');
+  el.innerHTML = '<div class="meses-bar">'
+    + '<button class="mes-chip'+(mesActivo==='todos'?' active':'')+'" onclick="setMes(\'todos\')">Todos <span class="mes-n">'+videos.length+'</span></button>'
+    + chips
+    + '<button class="mes-chip nuevo" onclick="agregarMes()" title="Crear una pestaña de mes">+ Mes</button>'
+    + '</div>';
+}
+
+function agregarMes(){
+  const sugerido = mesActivo !== 'todos' ? mesActivo : mesActual();
+  const val = prompt('¿Qué mes quieres agregar? Formato AAAA-MM (por ejemplo 2026-10):', sugerido);
+  if(!val) return;
+  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(val.trim())){
+    alert('Formato no válido. Usa AAAA-MM, por ejemplo 2026-10.');
+    return;
+  }
+  const m = val.trim();
+  if(!mesesExtra.includes(m)) mesesExtra.push(m);
+  setMes(m);
+}
+
+function cambiarMesVideo(id, nuevo){
+  const v = videos.find(v=>v.id===id);
+  if(!v || !nuevo) return;
+  v.mes = nuevo;
+  save(id);
+  if(mesActivo !== 'todos') mesActivo = nuevo;
+  render();
+}
+
+function setMes(m){
+  mesActivo = m;
+  const lista = videosDelMes();
+  if(lista.length && !lista.some(v=>v.id===activeId)) activeId = lista[0].id;
+  copyEditMode = false;
+  render();
+}
+
 function renderDashboard(){
   const el = document.getElementById('dashboard');
-  if(!videos.length){ el.innerHTML=''; return; }
+  const lote = videosDelMes();
+  if(!lote.length){ el.innerHTML=''; return; }
 
   const groups = [
     { key:'sin revisar', label:'Sin revisar', cls:'' },
@@ -1093,7 +1225,7 @@ function renderDashboard(){
   ];
 
   const full = '<div class="dash">' + groups.map(g=>{
-    const items = videos.filter(v=>v.status===g.key);
+    const items = lote.filter(v=>v.status===g.key);
     const rows = items.length
       ? items.map(v=>{
           const dl = driveDownload(v.driveHD);
@@ -1142,7 +1274,7 @@ function renderDashboard(){
                + '</button>';
 
   const compact = groups.map(g=>{
-    const n = videos.filter(v=>v.status===g.key).length;
+    const n = lote.filter(v=>v.status===g.key).length;
     return '<span class="dash-chip">'
          + '<span class="dot" style="background:'+statusColor(g.key)+'"></span>'
          + g.label+' <b>'+n+'</b></span>';
@@ -1180,13 +1312,14 @@ function descargarLote(lista, etiqueta){
 }
 
 function downloadPendientes(){
-  const pend = videos.filter(v => v.status==='aprobado' && driveDownload(v.driveHD) && !v.downloadedAt);
+  const pend = videosDelMes().filter(v => v.status==='aprobado' && driveDownload(v.driveHD) && !v.downloadedAt);
   descargarLote(pend, 'pendientes');
 }
 
 function downloadAllApproved(){
-  const withHd = videos.filter(v => v.status==='aprobado' && driveDownload(v.driveHD));
-  const withoutHd = videos.filter(v => v.status==='aprobado' && !driveDownload(v.driveHD));
+  const lote = videosDelMes();
+  const withHd = lote.filter(v => v.status==='aprobado' && driveDownload(v.driveHD));
+  const withoutHd = lote.filter(v => v.status==='aprobado' && !driveDownload(v.driveHD));
   if(!withHd.length){ alert('Ninguno de los aprobados tiene link HD todavía.'); return; }
 
   let msg = 'Se van a descargar '+withHd.length+' video(s) en HD.';
@@ -1411,6 +1544,7 @@ function refreshAudio(){
 /* ---------- full render ---------- */
 function render(){
   const app = document.getElementById('app');
+  renderMeses();
   renderDashboard();
 
   if(!videos.length){
@@ -1418,10 +1552,16 @@ function render(){
     document.body.classList.remove('mode-corregir','mode-aprobado','mode-subido');
     return;
   }
-  const v = videos.find(v=>v.id===activeId) || videos[0];
+  const lote = videosDelMes();
+  if(!lote.length){
+    app.innerHTML = `<div class="panel"><div class="empty"><p>No hay videos en ${mesLabel(mesActivo)}.</p><button class="btn-add" onclick="openModal()">Agregar uno</button></div></div>`;
+    document.body.classList.remove('mode-corregir','mode-aprobado','mode-subido');
+    return;
+  }
+  const v = lote.find(v=>v.id===activeId) || lote[0];
   activeId = v.id;
 
-  const tabs = videos.map(vid=>`
+  const tabs = lote.map(vid=>`
     <button class="tab ${vid.id===v.id?'active':''}" onclick="goToVideo('${vid.id}')">
       <span class="dot" id="dot-${vid.id}" style="background:${statusColor(vid.status)}"></span>${escapeHtml(vid.name)}
     </button>
@@ -1446,6 +1586,10 @@ function render(){
             <select class="status-select" onchange="setVideoStatus('${v.id}', this.value)">
               ${STATUSES.map(s=>`<option value="${s}" ${s===v.status?'selected':''}>${labelEstado(s)}</option>`).join('')}
             </select>
+          </div>
+          <div class="mes-row">
+            <label>Mes</label>
+            <input type="month" class="mes-input" value="${v.mes || ''}" onchange="cambiarMesVideo('${v.id}', this.value)">
           </div>
         </div>
       </div>
