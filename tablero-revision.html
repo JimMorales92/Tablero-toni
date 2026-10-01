@@ -2024,7 +2024,7 @@ function renderSeleccion(){
     return;
   }
 
-  const orden = momentosOrdenados().filter(m => !READONLY || m.drive);
+  const orden = momentosOrdenados();
   const chips = FILTROS_MOM.map(f => {
     const n = orden.filter(m => pasaFiltro(m, f.key)).length;
     return `<button class="mes-chip${filtroMom === f.key ? ' active' : ''}" onclick="setFiltroMom('${f.key}')">${f.label} <span class="mes-n">${n}</span></button>`;
@@ -2066,7 +2066,7 @@ function renderSeleccion(){
   const video = embed
     ? `<div class="video-frame"><iframe src="${embed}" allow="autoplay" allowfullscreen title="Clip del momento"></iframe></div>`
     : `<div class="sin-clip">
-         <p>${m.drive ? 'No se pudo leer el link de Drive de este clip.' : 'Este clip todavía no está en Drive.'}${m.clip ? ' Súbelo con el nombre <b>' + escapeHtml(m.clip) + '</b> y dale a <b>Buscar clips en Drive</b>, o pega su link:' : ' Pega su link:'}</p>
+         <p>${READONLY ? (m.drive ? 'No se pudo abrir el clip de este momento.' : 'El clip de este momento todavía no está listo.') : (m.drive ? 'No se pudo leer el link de Drive de este clip.' : 'Este clip todavía no está en Drive.')}${READONLY ? '' : m.clip ? ' Súbelo con el nombre <b>' + escapeHtml(m.clip) + '</b> y dale a <b>Buscar clips en Drive</b>, o pega su link:' : ' Pega su link:'}</p>
          <div class="fila owner-only">
            <input id="m-link" type="text" placeholder="https://drive.google.com/file/d/..." value="${escapeHtml(m.drive || '')}">
            <button class="btn-add" onclick="guardarLinkClip('${m.id}')">Guardar link</button>
