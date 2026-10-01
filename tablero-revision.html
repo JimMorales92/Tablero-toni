@@ -674,6 +674,7 @@ body.readonly .btn-import{display:none !important;}
 .sin-clip input:focus{outline:2px solid var(--brass);outline-offset:1px;}
 .imp-aviso{margin:0 0 14px;padding:10px 14px;border-radius:10px;border:1px solid var(--brass-dim);font-size:13.5px;}
 .tab .falta{opacity:.55;font-size:11px;margin-left:4px;}
+.tab-sep{flex:0 0 1px;align-self:stretch;background:var(--line);margin:4px 6px;}
 </style>
 
 <div class="wrap">
@@ -1965,7 +1966,9 @@ async function loadMomentos(){
 }
 
 function momentosOrdenados(){
+  // primero los que ya tienen clip, para que Toni empiece por esos
   return momentos.slice().sort((a,b) =>
+    (b.drive ? 1 : 0) - (a.drive ? 1 : 0) ||
     (a.concierto || '').localeCompare(b.concierto || '') ||
     (a.hora || '').localeCompare(b.hora || '') ||
     String(a.id).localeCompare(String(b.id)));
@@ -2057,7 +2060,8 @@ function renderSeleccion(){
   momentoActivo = m.id;
   const idx = lista.indexOf(m);
 
-  const tabs = lista.map(x => `
+  const primeroSinClip = lista.findIndex(x => !x.drive);
+  const tabs = lista.map((x, i) => (i === primeroSinClip && i > 0 ? '<span class="tab-sep" aria-hidden="true"></span>' : '') + `
     <button class="tab ${x.id === m.id ? 'active' : ''}" onclick="irAMomento('${x.id}')">
       <span class="dot" id="mdot-${x.id}" style="background:${colorDecision(x.decision)}"></span>${fechaCorta(x.concierto)}, ${horaCorta(x.hora)}${x.drive ? '' : '<span class="falta">sin clip</span>'}
     </button>`).join('');
