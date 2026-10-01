@@ -2080,7 +2080,7 @@ function renderSeleccion(){
       ? `<div class="grupo-tabs"><p class="grupo-tit">Con clip · listos para Toni <span class="mes-n">${conClip.length}</span></p><div class="tabs">${conClip.map(tabBtn).join('')}</div></div>`
       : '')
     + (sinClip.length
-      ? `<div class="grupo-tabs grupo-sin"><p class="grupo-tit">Sin clip todavía · Toni no los ve <span class="mes-n">${sinClip.length}</span></p><div class="tabs">${sinClip.map(tabBtn).join('')}</div></div>`
+      ? `<div class="grupo-tabs grupo-sin"><p class="grupo-tit">Sin clip todavía <span class="mes-n">${sinClip.length}</span></p><div class="tabs">${sinClip.map(tabBtn).join('')}</div></div>`
       : ''));
 
   const embed = m.drive ? driveEmbed(m.drive) : '';
