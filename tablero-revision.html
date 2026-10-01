@@ -2044,7 +2044,7 @@ function renderSeleccion(){
     return `<button class="mes-chip${filtroMom === f.key ? ' active' : ''}" onclick="setFiltroMom('${f.key}')">${f.label} <span class="mes-n">${n}</span></button>`;
   }).join('');
 
-  const intro = `<p class="subtitle mom-sub">Clips de 30 segundos alrededor de cada marca del pedal. Dime qué pasa en cada uno y si sirve para un reel.</p>`;
+  const intro = `<p class="subtitle mom-sub">Clips de 40 segundos alrededor de cada marca del pedal. Dime qué pasa en cada uno y si sirve para un reel.</p>`;
 
   if(!orden.length){
     el.innerHTML = intro + (avisoImport ? `<div class="imp-aviso" role="status">${avisoImport}</div>` : '') + `<div class="panel"><div class="empty">
