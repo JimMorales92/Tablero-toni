@@ -674,7 +674,17 @@ body.readonly .btn-import{display:none !important;}
 .sin-clip input:focus{outline:2px solid var(--brass);outline-offset:1px;}
 .imp-aviso{margin:0 0 14px;padding:10px 14px;border-radius:10px;border:1px solid var(--brass-dim);font-size:13.5px;}
 .tab .falta{opacity:.55;font-size:11px;margin-left:4px;}
-.tab-sep{flex:0 0 1px;align-self:stretch;background:var(--line);margin:4px 6px;}
+.grupo-tabs{margin-bottom:6px;}
+.grupo-tit{margin:0 0 4px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-dim);display:flex;align-items:center;gap:6px;}
+.grupo-sin{margin-top:2px;}
+.grupo-sin .tabs{opacity:.6;}
+.grupo-sin .tabs:hover,.grupo-sin .tab.active{opacity:1;}
+.grupo-tabs .tabs{margin-bottom:10px;}
+.cambiar-link{margin-top:10px;}
+.cambiar-link .fila{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.cambiar-link .fila[hidden]{display:none;}
+.cambiar-link input{flex:1 1 200px;min-width:0;background:var(--panel-raised);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px;font:inherit;font-size:13.5px;}
+.cambiar-link input:focus{outline:2px solid var(--brass);outline-offset:1px;}
 </style>
 
 <div class="wrap">
@@ -1939,7 +1949,7 @@ function applyZona(){
 function actualizarContadorZona(){
   const el = document.getElementById('zona-n-sel');
   if(!el) return;
-  const n = momentos.filter(m => !m.decision).length;
+  const n = momentos.filter(m => !m.decision && (!READONLY || m.drive)).length;
   el.textContent = n ? String(n) : '';
 }
 
@@ -2027,7 +2037,8 @@ function renderSeleccion(){
     return;
   }
 
-  const orden = momentosOrdenados();
+  const todos = momentosOrdenados();
+  const orden = READONLY ? todos.filter(m => m.drive) : todos;
   const chips = FILTROS_MOM.map(f => {
     const n = orden.filter(m => pasaFiltro(m, f.key)).length;
     return `<button class="mes-chip${filtroMom === f.key ? ' active' : ''}" onclick="setFiltroMom('${f.key}')">${f.label} <span class="mes-n">${n}</span></button>`;
@@ -2060,15 +2071,29 @@ function renderSeleccion(){
   momentoActivo = m.id;
   const idx = lista.indexOf(m);
 
-  const primeroSinClip = lista.findIndex(x => !x.drive);
-  const tabs = lista.map((x, i) => (i === primeroSinClip && i > 0 ? '<span class="tab-sep" aria-hidden="true"></span>' : '') + `
+  const tabBtn = x => `
     <button class="tab ${x.id === m.id ? 'active' : ''}" onclick="irAMomento('${x.id}')">
-      <span class="dot" id="mdot-${x.id}" style="background:${colorDecision(x.decision)}"></span>${fechaCorta(x.concierto)}, ${horaCorta(x.hora)}${x.drive ? '' : '<span class="falta">sin clip</span>'}
-    </button>`).join('');
+      <span class="dot" id="mdot-${x.id}" style="background:${colorDecision(x.decision)}"></span>${fechaCorta(x.concierto)}, ${horaCorta(x.hora)}
+    </button>`;
+  const conClip = lista.filter(x => x.drive), sinClip = lista.filter(x => !x.drive);
+  const tabs = READONLY ? `<div class="tabs">${conClip.map(tabBtn).join('')}</div>` : ((conClip.length
+      ? `<div class="grupo-tabs"><p class="grupo-tit">Con clip · listos para Toni <span class="mes-n">${conClip.length}</span></p><div class="tabs">${conClip.map(tabBtn).join('')}</div></div>`
+      : '')
+    + (sinClip.length
+      ? `<div class="grupo-tabs grupo-sin"><p class="grupo-tit">Sin clip todavía · Toni no los ve <span class="mes-n">${sinClip.length}</span></p><div class="tabs">${sinClip.map(tabBtn).join('')}</div></div>`
+      : ''));
 
   const embed = m.drive ? driveEmbed(m.drive) : '';
   const video = embed
-    ? `<div class="video-frame"><iframe src="${embed}" allow="autoplay" allowfullscreen title="Clip del momento"></iframe></div>`
+    ? `<div class="video-frame"><iframe src="${embed}" allow="autoplay" allowfullscreen title="Clip del momento"></iframe></div>
+       <div class="cambiar-link owner-only">
+         <button class="btn-cancel" onclick="this.nextElementSibling.hidden=false;this.hidden=true;document.getElementById('m-link').focus()">Cambiar link del clip</button>
+         <div class="fila" hidden>
+           <input id="m-link" type="text" placeholder="https://drive.google.com/file/d/..." value="${escapeHtml(m.drive || '')}">
+           <button class="btn-add" onclick="guardarLinkClip('${m.id}')">Guardar</button>
+           <button class="btn-cancel" onclick="quitarLinkClip('${m.id}')">Quitar clip</button>
+         </div>
+       </div>`
     : `<div class="sin-clip">
          <p>${READONLY ? (m.drive ? 'No se pudo abrir el clip de este momento.' : 'El clip de este momento todavía no está listo.') : (m.drive ? 'No se pudo leer el link de Drive de este clip.' : 'Este clip todavía no está en Drive.')}${READONLY ? '' : m.clip ? ' Súbelo con el nombre <b>' + escapeHtml(m.clip) + '</b> y dale a <b>Buscar clips en Drive</b>, o pega su link:' : ' Pega su link:'}</p>
          <div class="fila owner-only">
@@ -2093,7 +2118,7 @@ function renderSeleccion(){
 
   el.innerHTML = intro + aviso + `
     <div class="meses-bar mom-filtros">${chips}</div>
-    <div class="tabs">${tabs}</div>
+    ${tabs}
     <div class="layout">
       <div class="col-video"><div class="panel">${video}</div></div>
       <div class="col-review">
@@ -2140,7 +2165,7 @@ function irAMomento(id){
 }
 
 function moverMomento(paso){
-  const orden = momentosOrdenados();
+  const orden = momentosOrdenados().filter(m => !READONLY || m.drive);
   const lista = orden.filter(m => pasaFiltro(m, filtroMom) || m.id === momentoActivo);
   const i = lista.findIndex(m => m.id === momentoActivo);
   const sig = lista[i + paso];
@@ -2370,6 +2395,17 @@ async function guardarLinkClip(id){
   if(!m) return;
   m.drive = link;
   momPendiente[id] = Object.assign(momPendiente[id] || {}, { drive: link });
+  renderSeleccion();
+  enviarMomento(id);
+}
+
+function quitarLinkClip(id){
+  if(READONLY) return;
+  if(!confirm('¿Quitar el clip de este momento? Toni dejará de verlo hasta que pongas otro link.')) return;
+  const m = momentos.find(x => x.id === id);
+  if(!m) return;
+  m.drive = '';
+  momPendiente[id] = Object.assign(momPendiente[id] || {}, { drive: '' });
   renderSeleccion();
   enviarMomento(id);
 }
