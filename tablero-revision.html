@@ -660,6 +660,20 @@ body.readonly .btn-borrar,body.readonly .owner-only{display:none !important;}
   #seleccion .video-frame{height:min(55vh,520px);}
 }
 @media (prefers-reduced-motion:reduce){ .dec-btn{transition:none;} }
+.btn-import{display:inline-flex;align-items:center;cursor:pointer;position:relative;}
+.btn-import input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;}
+.btn-import:focus-within{outline:2px solid var(--brass);outline-offset:2px;}
+body.readonly .btn-import{display:none !important;}
+.mom-datos{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:12px 0 4px;font-size:13px;}
+.mom-datos dt{color:var(--text-dim);}
+.mom-datos dd{margin:0;font-variant-numeric:tabular-nums;word-break:break-all;}
+.sin-clip{border:1px dashed var(--line);border-radius:10px;padding:16px;}
+.sin-clip p{margin:0 0 10px;}
+.sin-clip .fila{display:flex;gap:8px;flex-wrap:wrap;}
+.sin-clip input{flex:1 1 220px;min-width:0;background:var(--panel-raised);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px;font:inherit;font-size:13.5px;}
+.sin-clip input:focus{outline:2px solid var(--brass);outline-offset:1px;}
+.imp-aviso{margin:0 0 14px;padding:10px 14px;border-radius:10px;border:1px solid var(--brass-dim);font-size:13.5px;}
+.tab .falta{opacity:.55;font-size:11px;margin-left:4px;}
 </style>
 
 <div class="wrap">
@@ -673,6 +687,8 @@ body.readonly .btn-borrar,body.readonly .owner-only{display:none !important;}
       <button class="btn-cancel solo-revision" onclick="exportCorrecciones()">↓ Correcciones</button>
       <button class="btn-cancel solo-revision" onclick="openHdModal()">Links HD</button>
       <button class="btn-add solo-revision" onclick="openModal()">Agregar video</button>
+      <button class="btn-cancel solo-seleccion" onclick="buscarClipsDrive(this)">Buscar clips en Drive</button>
+      <label class="btn-cancel solo-seleccion btn-import">Importar momentos<input type="file" id="imp-file" accept=".json,application/json" onchange="importarArchivo(this)"></label>
       <button class="btn-add solo-seleccion" onclick="openMomModal()">Agregar momento</button>
     </div>
   </header>
@@ -2008,7 +2024,7 @@ function renderSeleccion(){
     return;
   }
 
-  const orden = momentosOrdenados();
+  const orden = momentosOrdenados().filter(m => !READONLY || m.drive);
   const chips = FILTROS_MOM.map(f => {
     const n = orden.filter(m => pasaFiltro(m, f.key)).length;
     return `<button class="mes-chip${filtroMom === f.key ? ' active' : ''}" onclick="setFiltroMom('${f.key}')">${f.label} <span class="mes-n">${n}</span></button>`;
@@ -2017,7 +2033,7 @@ function renderSeleccion(){
   const intro = `<p class="subtitle mom-sub">Clips de 30 segundos alrededor de cada marca del pedal. Dime qué pasa en cada uno y si sirve para un reel.</p>`;
 
   if(!orden.length){
-    el.innerHTML = intro + `<div class="panel"><div class="empty">
+    el.innerHTML = intro + (avisoImport ? `<div class="imp-aviso" role="status">${avisoImport}</div>` : '') + `<div class="panel"><div class="empty">
       <p>Todavía no hay momentos para revisar.</p>
       <button class="btn-add owner-only" onclick="openMomModal()">Agregar el primero</button>
     </div></div>`;
@@ -2026,11 +2042,12 @@ function renderSeleccion(){
   }
 
   const lista = orden.filter(m => pasaFiltro(m, filtroMom) || m.id === momentoActivo && momPendiente[m.id]);
+  const aviso = avisoImport ? `<div class="imp-aviso" role="status">${avisoImport}</div>` : '';
   if(!lista.length){
     const vacio = filtroMom === 'pendiente'
       ? 'No queda ningún momento por revisar.'
       : 'No hay momentos en este grupo.';
-    el.innerHTML = intro + `<div class="meses-bar mom-filtros">${chips}</div>
+    el.innerHTML = intro + aviso + `<div class="meses-bar mom-filtros">${chips}</div>
       <div class="panel"><div class="empty"><p>${vacio}</p></div></div>`;
     applyReadonly();
     return;
@@ -2042,20 +2059,35 @@ function renderSeleccion(){
 
   const tabs = lista.map(x => `
     <button class="tab ${x.id === m.id ? 'active' : ''}" onclick="irAMomento('${x.id}')">
-      <span class="dot" id="mdot-${x.id}" style="background:${colorDecision(x.decision)}"></span>${fechaCorta(x.concierto)}, ${horaCorta(x.hora)}
+      <span class="dot" id="mdot-${x.id}" style="background:${colorDecision(x.decision)}"></span>${fechaCorta(x.concierto)}, ${horaCorta(x.hora)}${x.drive ? '' : '<span class="falta">sin clip</span>'}
     </button>`).join('');
 
-  const embed = driveEmbed(m.drive);
+  const embed = m.drive ? driveEmbed(m.drive) : '';
   const video = embed
     ? `<div class="video-frame"><iframe src="${embed}" allow="autoplay" allowfullscreen title="Clip del momento"></iframe></div>`
-    : `<p class="subtitle">No se pudo leer el link de Drive de este clip.</p>`;
+    : `<div class="sin-clip">
+         <p>${m.drive ? 'No se pudo leer el link de Drive de este clip.' : 'Este clip todavía no está en Drive.'}${m.clip ? ' Súbelo con el nombre <b>' + escapeHtml(m.clip) + '</b> y dale a <b>Buscar clips en Drive</b>, o pega su link:' : ' Pega su link:'}</p>
+         <div class="fila owner-only">
+           <input id="m-link" type="text" placeholder="https://drive.google.com/file/d/..." value="${escapeHtml(m.drive || '')}">
+           <button class="btn-add" onclick="guardarLinkClip('${m.id}')">Guardar link</button>
+         </div>
+       </div>`;
+  const datos = [
+    ['Video original', m.video],
+    ['Rango del clip', m.rango],
+    ['Momento en el video', m.momentoVideo],
+    ['Clic del pedal', m.clic ? m.clic.replace('T', ' ').slice(0, 19) + (Number(m.pisadas) > 1 ? ' · ' + m.pisadas + ' pisadas' : '') : ''],
+    ['Clip', m.clip]
+  ].filter(d => d[1]);
+  const datosHtml = datos.length
+    ? `<dl class="mom-datos">${datos.map(d => `<dt>${d[0]}</dt><dd>${escapeHtml(d[1])}</dd>`).join('')}</dl>` : '';
 
   const nota = READONLY
     ? (m.notaJim ? `<div class="mom-nota"><span class="note-label">Nota de Jim</span><p>${escapeHtml(m.notaJim)}</p></div>` : '')
     : `<div class="mom-nota"><label class="note-label" for="nota-jim">Nota de Jim</label>
          <textarea id="nota-jim" class="comment" style="width:100%;" placeholder="Opcional: qué viste tú en este momento" oninput="editarMomento('${m.id}','notaJim',this.value)">${escapeHtml(m.notaJim || '')}</textarea></div>`;
 
-  el.innerHTML = intro + `
+  el.innerHTML = intro + aviso + `
     <div class="meses-bar mom-filtros">${chips}</div>
     <div class="tabs">${tabs}</div>
     <div class="layout">
@@ -2064,6 +2096,7 @@ function renderSeleccion(){
         <div class="panel">
           <h2 class="mom-cuando">${fechaConcierto(m.concierto)}, <span class="mom-hora">${escapeHtml(m.hora || '')}</span></h2>
           <p class="mom-meta">Hora en que Toni pisó el pedal</p>
+          ${datosHtml}
           ${nota}
 
           <div class="dec-row" role="group" aria-label="¿Sirve este momento?">
@@ -2250,6 +2283,91 @@ async function guardarMomento(otro){
     momentoActivo = m.id;
   }
   renderSeleccion();
+}
+
+/* ---------- importar momentos desde "Marcas de Toni" ---------- */
+let avisoImport = '';
+function mostrarAviso(txt){ avisoImport = txt; renderSeleccion(); }
+
+async function postApi(obj){
+  const res = await fetch(API_URL, {
+    method:'POST',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify(obj)
+  });
+  const data = await res.json();
+  if(!data.ok) throw new Error(data.error || 'sin ok');
+  return data;
+}
+
+async function importarArchivo(input){
+  const file = input.files[0];
+  input.value = '';
+  if(!file || READONLY) return;
+  let datos;
+  try{ datos = JSON.parse(await file.text()); }
+  catch(e){ mostrarAviso('Ese archivo no se pudo leer. Usa el que descarga "Marcas de Toni" con el botón Descargar para el tablero.'); return; }
+  const lista = datos && datos.tipo === 'marcas-toni' && Array.isArray(datos.momentos) ? datos.momentos : null;
+  if(!lista || !lista.length){ mostrarAviso('El archivo no trae momentos de "Marcas de Toni".'); return; }
+  const ahora = new Date().toISOString();
+  const nuevos = lista.map(x => ({
+    id: String(x.id),
+    drive: x.drive || '',
+    concierto: x.concierto || (x.fecha || ''),
+    hora: x.horaClic || '',
+    notaJim: x.queVi || '',
+    decision: '',
+    queFue: '',
+    creado: ahora,
+    video: x.video || '',
+    rango: x.rango || '',
+    momentoVideo: x.momento || '',
+    clip: x.clip || '',
+    clic: x.clic || '',
+    pisadas: x.pisadas != null ? String(x.pisadas) : ''
+  }));
+  mostrarAviso('Importando ' + nuevos.length + ' momento' + (nuevos.length === 1 ? '' : 's') + '…');
+  try{
+    const r = await postApi({ action:'importMomentos', momentos: nuevos });
+    let txt = 'Importé ' + r.agregados + ' momento' + (r.agregados === 1 ? '' : 's') + '.';
+    if(r.repetidos) txt += ' ' + r.repetidos + ' ya estaban en el tablero y no los dupliqué.';
+    if(r.agregados) txt += r.conClip === r.agregados ? ' Todos ya tienen su clip de Drive.' :
+      (r.agregados - r.conClip === 1 ? ' 1 todavía no tiene clip: súbelo' : ' ' + (r.agregados - r.conClip) + ' todavía no tienen clip: súbelos') + ' a Drive con su nombre y dale a Buscar clips en Drive.';
+    avisoImport = txt;
+    filtroMom = 'pendiente'; momentoActivo = null;
+    await loadMomentos();
+  }catch(e){
+    console.error(e);
+    mostrarAviso('No se pudo importar. Revisa que el Apps Script esté actualizado (necesita la versión con importMomentos) e intenta de nuevo.');
+  }
+}
+
+async function buscarClipsDrive(btn){
+  if(READONLY) return;
+  btn.disabled = true;
+  mostrarAviso('Buscando los clips en Drive…');
+  try{
+    const r = await postApi({ action:'buscarClips' });
+    avisoImport = r.encontrados
+      ? 'Encontré ' + r.encontrados + ' clip' + (r.encontrados === 1 ? '' : 's') + ' en Drive.' + (r.faltan ? ' Faltan ' + r.faltan + '.' : '')
+      : (r.faltan ? 'No encontré los ' + r.faltan + ' clips que faltan. Revisa que estén subidos con el mismo nombre.' : 'Todos los momentos ya tienen su clip.');
+    await loadMomentos();
+  }catch(e){
+    console.error(e);
+    mostrarAviso('No se pudo buscar en Drive. Revisa que el Apps Script esté actualizado.');
+  }finally{ btn.disabled = false; }
+}
+
+async function guardarLinkClip(id){
+  const inp = document.getElementById('m-link');
+  const link = (inp && inp.value || '').trim();
+  if(!driveFileId(link)){ alert('Pega el link de Drive del clip.'); return; }
+  const m = momentos.find(x => x.id === id);
+  if(!m) return;
+  m.drive = link;
+  momPendiente[id] = Object.assign(momPendiente[id] || {}, { drive: link });
+  renderSeleccion();
+  enviarMomento(id);
 }
 
 function initZona(){
