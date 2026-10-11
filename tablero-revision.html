@@ -118,7 +118,7 @@ body.readonly .mes-row{display:none;}
 
 .dash{
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:repeat(5,minmax(0,1fr));
   gap:10px;
   margin-bottom:18px;
 }
@@ -696,6 +696,18 @@ html:not(.jim) .solo-jim{display:none !important;}
 .grupo-tit{margin:0 0 4px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-dim);display:flex;align-items:center;gap:6px;}
 .grupo-sin{margin-top:2px;}
 .grupo-sin .tabs{opacity:.6;}
+.tab.sinclip{opacity:.55;}
+.grupo-sinclip{margin-left:6px;text-transform:none;letter-spacing:0;color:var(--text-dim);font-size:11.5px;opacity:.8;}
+.etapa-box{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:14px 0;}
+.etapa-box p{margin:0 0 10px;font-size:14px;}
+.etapa-box p:last-child{margin-bottom:0;}
+.etapa-box.is-edicion{border-color:var(--amber);}
+.etapa-box.is-subida{border-color:var(--green);}
+.etapa-box.is-usado{border-color:var(--blue);}
+.etapa-box.is-nosirve{border-color:var(--red-flag);}
+.origen-mom{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+.origen-mom p{margin:4px 0 10px;font-size:13.5px;}
+.origen-mom .btn-cancel{display:inline-block;margin-right:6px;text-decoration:none;}
 .grupo-sin .tabs:hover,.grupo-sin .tab.active{opacity:1;}
 .grupo-tabs .tabs{margin-bottom:10px;}
 .cambiar-link{margin-top:10px;}
@@ -843,7 +855,7 @@ html:not(.jim) .solo-jim{display:none !important;}
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSnwOwdpQTZAmKCLmpynEnSCvzuhzC_jv7Afl3NTQvtP4jecCG3wNZyhUArDPsrpRUpg/exec';
-const STATUSES = ['sin revisar','corregir','aprobado','subido'];
+const STATUSES = ['editando','sin revisar','corregir','aprobado','subido'];
 let videos = [];
 let activeId = null;
 let copyEditMode = false;
@@ -890,10 +902,12 @@ function videosDelMes(){
 
 function labelEstado(st){
   if(st === 'aprobado') return 'corregido';
+  if(st === 'editando') return 'en edición';
   return st;
 }
 
 function statusColor(s){
+  if(s==='editando') return 'var(--amber)';
   if(s==='sin revisar') return 'var(--grey)';
   if(s==='corregir') return 'var(--red-flag)';
   if(s==='aprobado') return 'var(--green)';
@@ -961,6 +975,7 @@ async function load(){
     if(v.driveHD === undefined) v.driveHD = '';
     if(v.uploadedAt === undefined) v.uploadedAt = '';
     if(v.downloadedAt === undefined) v.downloadedAt = '';
+    if(v.momentoId === undefined) v.momentoId = '';
     if(!v.mes) v.mes = mesDesdeId(v.id);
     if(!Array.isArray(v.scriptLines)) v.scriptLines = [];
     if(!Array.isArray(v.timestampComments)) v.timestampComments = [];
@@ -1244,6 +1259,7 @@ function setVideoStatus(id, status){
   v.status = status;
   if(status === 'subido' && !v.uploadedAt) v.uploadedAt = new Date().toISOString();
   if(status !== 'subido') v.uploadedAt = '';
+  syncMomentoLocal(v);
   refrescarFuenteVideo(v);
   const dot = document.getElementById('dot-'+id);
   if(dot) dot.style.background = statusColor(status);
@@ -1405,6 +1421,7 @@ function renderDashboard(){
   if(!lote.length){ el.innerHTML=''; return; }
 
   const groups = [
+    { key:'editando',    label:'En edición',  cls:'' },
     { key:'sin revisar', label:'Sin revisar', cls:'' },
     { key:'corregir',    label:'Corregir',    cls:'is-corregir' },
     { key:'aprobado',    label:'Corregidos',  cls:'is-aprobado' },
@@ -1562,6 +1579,7 @@ function marcarSubido(id){
   if(!v) return;
   v.status = 'subido';
   v.uploadedAt = new Date().toISOString();
+  syncMomentoLocal(v);
   refrescarFuenteVideo(v);
   renderDashboard();
   if(v.id === activeId){
@@ -1579,6 +1597,7 @@ function desmarcarSubido(id){
   if(!v) return;
   v.status = 'aprobado';
   v.uploadedAt = '';
+  syncMomentoLocal(v);
   refrescarFuenteVideo(v);
   renderDashboard();
   if(v.id === activeId){
@@ -1756,11 +1775,27 @@ function render(){
 
   const fuente = fuenteVideo(v);
   const embed = driveEmbed(fuente.url);
+  const mo = v.momentoId ? momentos.find(x => x.id === v.momentoId) : null;
+  const origen = mo
+    ? `<div class="origen-mom">
+         <span class="note-label">Sale del momento</span>
+         <p><b>${fechaCorta(mo.concierto)}, ${horaCorta(mo.hora)}</b>${mo.queFue ? ' · ' + escapeHtml(mo.queFue) : ''}</p>
+         <button class="btn-cancel" onclick="verMomento('${mo.id}')">Ver momento</button>
+         ${mo.drive ? `<a class="btn-cancel" href="${escapeHtml(mo.drive)}" target="_blank" rel="noopener">Abrir clip</a>` : ''}
+       </div>` : '';
   const videoHtml = embed
     ? `<div class="video-frame"><iframe id="video-iframe" src="${embed}" allow="autoplay" allowfullscreen></iframe>
          ${fuente.hd ? '<span class="hd-badge">HD</span>' : ''}
        </div>`
-    : `<p class="subtitle">No se pudo leer el link de Drive.</p>`;
+    : (!v.drive
+      ? `<div class="sin-clip">
+           <p>${READONLY ? 'Este video todavía está en edición.' : 'Todavía no hay video editado. Cuando lo tengas, pega aquí su link de Drive y pasará a <b>Sin revisar</b> para que Toni lo vea.'}</p>
+           <div class="fila owner-only">
+             <input id="v-link" type="text" placeholder="https://drive.google.com/file/d/...">
+             <button class="btn-add" onclick="guardarLinkEditado('${v.id}')">Guardar link</button>
+           </div>
+         </div>`
+      : `<p class="subtitle">No se pudo leer el link de Drive.</p>`);
 
   app.innerHTML = `
     <div class="tabs">${tabs}</div>
@@ -1778,6 +1813,7 @@ function render(){
             <label>Mes</label>
             <input type="month" class="mes-input" value="${v.mes || ''}" onchange="cambiarMesVideo('${v.id}', this.value)">
           </div>
+          ${origen}
         </div>
       </div>
       <div class="col-review">
@@ -1942,9 +1978,33 @@ const momPendiente = {};
 const FILTROS_MOM = [
   { key:'pendiente', label:'Por revisar' },
   { key:'sirve',     label:'Sirven' },
-  { key:'no sirve',  label:'No sirven' },
-  { key:'todos',     label:'Todos' }
+  { key:'edicion',   label:'Para edición' },
+  { key:'subida',    label:'Pendiente de subida' },
+  { key:'archivado', label:'Archivados' }
 ];
+
+// etapa en la que está cada momento
+function etapaDe(m){
+  if(m.etapa === 'usado') return 'archivado';
+  if(m.decision === 'no sirve' && !m.etapa) return 'archivado';
+  if(m.etapa === 'pendiente de subida') return 'subida';
+  if(m.etapa === 'para edición') return 'edicion';
+  if(m.decision === 'sirve') return 'sirve';
+  return 'pendiente';
+}
+function etapaVideo(status){
+  if(status === 'subido') return 'usado';
+  if(status === 'aprobado') return 'pendiente de subida';
+  return 'para edición';
+}
+function syncMomentoLocal(v){
+  if(!v || !v.momentoId) return;
+  const m = momentos.find(x => x.id === v.momentoId);
+  if(!m) return;
+  m.etapa = etapaVideo(v.status);
+  m.videoId = v.id;
+  actualizarContadorZona();
+}
 
 function setZona(z){
   zona = z;
@@ -1971,7 +2031,7 @@ function applyZona(){
 function actualizarContadorZona(){
   const el = document.getElementById('zona-n-sel');
   if(!el) return;
-  const n = momentos.filter(m => !m.decision && ((JIM && !READONLY) || m.drive)).length;
+  const n = momentos.filter(m => etapaDe(m) === 'pendiente' && ((JIM && !READONLY) || m.drive)).length;
   el.textContent = n ? String(n) : '';
 }
 
@@ -1995,21 +2055,20 @@ async function loadMomentos(){
   }
   actualizarContadorZona();
   if(zona === 'seleccion') renderSeleccion();
+  else if(videos.some(v => v.momentoId)) render();
 }
 
 function momentosOrdenados(){
   // primero los que ya tienen clip, para que Toni empiece por esos
   return momentos.slice().sort((a,b) =>
-    (b.drive ? 1 : 0) - (a.drive ? 1 : 0) ||
-    (a.concierto || '').localeCompare(b.concierto || '') ||
+    (b.concierto || '').localeCompare(a.concierto || '') ||
     (a.hora || '').localeCompare(b.hora || '') ||
     String(a.id).localeCompare(String(b.id)));
 }
 
 function pasaFiltro(m, f){
   if(f === 'todos') return true;
-  if(f === 'pendiente') return !m.decision;
-  return m.decision === f;
+  return etapaDe(m) === f;
 }
 
 function fechaConcierto(iso){
@@ -2094,16 +2153,19 @@ function renderSeleccion(){
   const idx = lista.indexOf(m);
 
   const tabBtn = x => `
-    <button class="tab ${x.id === m.id ? 'active' : ''}" onclick="irAMomento('${x.id}')">
-      <span class="dot" id="mdot-${x.id}" style="background:${colorDecision(x.decision)}"></span>${fechaCorta(x.concierto)}, ${horaCorta(x.hora)}
+    <button class="tab ${x.id === m.id ? 'active' : ''}${x.drive ? '' : ' sinclip'}" onclick="irAMomento('${x.id}')" ${x.drive ? '' : 'title="Sin clip todavía"'}>
+      <span class="dot" id="mdot-${x.id}" style="background:${colorDecision(x.decision)}"></span>${horaCorta(x.hora)}${filtroMom === 'archivado' ? ' · ' + (x.etapa === 'usado' ? 'usado' : 'no sirve') : ''}
     </button>`;
-  const conClip = lista.filter(x => x.drive), sinClip = lista.filter(x => !x.drive);
-  const tabs = !(JIM && !READONLY) ? `<div class="tabs">${conClip.map(tabBtn).join('')}</div>` : ((conClip.length
-      ? `<div class="grupo-tabs"><p class="grupo-tit">Con clip · listos para Toni <span class="mes-n">${conClip.length}</span></p><div class="tabs">${conClip.map(tabBtn).join('')}</div></div>`
-      : '')
-    + (sinClip.length
-      ? `<div class="grupo-tabs grupo-sin"><p class="grupo-tit">Sin clip todavía <span class="mes-n">${sinClip.length}</span></p><div class="tabs">${sinClip.map(tabBtn).join('')}</div></div>`
-      : ''));
+  const grupos = [];
+  lista.forEach(x => {
+    const g = grupos[grupos.length - 1];
+    if(g && g.k === (x.concierto || '')) g.items.push(x);
+    else grupos.push({ k: x.concierto || '', items: [x] });
+  });
+  const tabs = grupos.map(g => {
+    const sin = g.items.filter(x => !x.drive).length;
+    return `<div class="grupo-tabs"><p class="grupo-tit">Concierto · ${fechaConcierto(g.k)} <span class="mes-n">${g.items.length}</span>${sin && JIM && !READONLY ? `<span class="grupo-sinclip">${sin} sin clip</span>` : ''}</p><div class="tabs">${g.items.map(tabBtn).join('')}</div></div>`;
+  }).join('');
 
   const embed = m.drive ? driveEmbed(m.drive) : '';
   const video = embed
@@ -2150,6 +2212,8 @@ function renderSeleccion(){
           ${datosHtml}
           ${nota}
 
+          ${etapaHtml(m)}
+
           <div class="dec-row" role="group" aria-label="¿Sirve este momento?">
             <button id="dec-sirve" class="dec-btn sirve${m.decision === 'sirve' ? ' on' : ''}" aria-pressed="${m.decision === 'sirve'}" onclick="decidirMomento('${m.id}','sirve')">Sirve</button>
             <button id="dec-nosirve" class="dec-btn nosirve${m.decision === 'no sirve' ? ' on' : ''}" aria-pressed="${m.decision === 'no sirve'}" onclick="decidirMomento('${m.id}','no sirve')">No sirve</button>
@@ -2172,6 +2236,88 @@ function renderSeleccion(){
       </div>
     </div>`;
   applyReadonly();
+}
+
+function etapaHtml(m){
+  const e = etapaDe(m);
+  const v = m.videoId ? videos.find(x => x.id === m.videoId) : null;
+  const ver = v ? `<button class="btn-cancel" onclick="verVideo('${v.id}')">Ver en Revisión de videos</button>` : '';
+  if(e === 'sirve' && !READONLY)
+    return `<div class="etapa-box"><p>Toni dijo que sirve. Cuando decidas editarlo, pásalo a edición y aparecerá en <b>Revisión de videos</b>.</p>
+      <button class="btn-add" onclick="pasarAEdicion('${m.id}')">Pasar a edición</button></div>`;
+  if(e === 'edicion') return `<div class="etapa-box is-edicion"><p><b>Para edición.</b> Ya está en Revisión de videos${v ? ' (' + labelEstado(v.status) + ')' : ''}.</p>${ver}</div>`;
+  if(e === 'subida') return `<div class="etapa-box is-subida"><p><b>Pendiente de subida.</b> El video ya está aprobado; falta subirlo a Instagram.</p>${ver}</div>`;
+  if(m.etapa === 'usado') return `<div class="etapa-box is-usado"><p><b>Archivado · usado.</b> El video de este momento ya se subió.</p>${ver}</div>`;
+  if(m.decision === 'no sirve') return `<div class="etapa-box is-nosirve"><p><b>Archivado · no sirve.</b> Si cambias de opinión, quítale el "No sirve" y regresa a Por revisar.</p></div>`;
+  return '';
+}
+
+function verVideo(id){
+  flushMomentos();
+  activeId = id;
+  mesActivo = 'todos';
+  setZona('revision');
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+function verMomento(id){
+  const m = momentos.find(x => x.id === id);
+  if(!m) return;
+  filtroMom = etapaDe(m);
+  momentoActivo = id;
+  setZona('seleccion');
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+async function pasarAEdicion(id){
+  if(READONLY) return;
+  const m = momentos.find(x => x.id === id);
+  if(!m || m.videoId) return;
+  flushMomentos();
+  const resumen = (m.queFue || '').trim().split('\n')[0].slice(0, 50);
+  const video = {
+    id: 'v' + Date.now(),
+    name: fechaCorta(m.concierto) + ' ' + horaCorta(m.hora) + (resumen ? ' · ' + resumen : ''),
+    drive: '', driveHD: '',
+    status: 'editando',
+    scriptLines: [], copy: '', copyStatus: 'pendiente', copyComment: '',
+    generalComment: '', notesForToni: '',
+    timestampComments: [], audioNotes: [],
+    uploadedAt: '', downloadedAt: '',
+    mes: mesActual(),
+    momentoId: m.id
+  };
+  videos.push(video);
+  m.etapa = 'para edición';
+  m.videoId = video.id;
+  estadoMom('Guardando…');
+  try{
+    await save(video.id);
+    momPendiente[id] = Object.assign(momPendiente[id] || {}, { etapa: m.etapa, videoId: m.videoId });
+    await enviarMomento(id);
+    filtroMom = 'edicion';
+    momentoActivo = id;
+    actualizarContadorZona();
+    renderSeleccion();
+    estadoMom('✓ Pasó a edición');
+  }catch(e){
+    videos = videos.filter(x => x.id !== video.id);
+    m.etapa = ''; m.videoId = '';
+    estadoMom('✗ No se pudo pasar a edición. Revisa tu conexión.', true);
+  }
+}
+
+async function guardarLinkEditado(id){
+  const v = videos.find(x => x.id === id);
+  const inp = document.getElementById('v-link');
+  const link = (inp && inp.value || '').trim();
+  if(!v) return;
+  if(!driveFileId(link)){ alert('Pega el link de Drive del video editado.'); return; }
+  v.drive = link;
+  if(v.status === 'editando') v.status = 'sin revisar';
+  syncMomentoLocal(v);
+  render();
+  try{ await save(id); }catch(e){ alert('No se pudo guardar el link. Revisa tu conexión.'); }
 }
 
 function setFiltroMom(f){
@@ -2208,6 +2354,7 @@ function decidirMomento(id, dec){
   if(READONLY) return;
   const m = momentos.find(x => x.id === id);
   if(!m) return;
+  if(m.etapa){ alert('Este momento ya está en Revisión de videos, así que su decisión ya no se puede cambiar.'); return; }
   m.decision = m.decision === dec ? '' : dec;
   momPendiente[id] = momPendiente[id] || {};
   momPendiente[id].decision = m.decision;
@@ -2219,6 +2366,10 @@ function decidirMomento(id, dec){
   if(dot) dot.style.background = colorDecision(m.decision);
   actualizarContadorZona();
   enviarMomento(id);
+  const caja = document.querySelector('.etapa-box');
+  const nueva = etapaHtml(m);
+  if(caja) caja.outerHTML = nueva || '<span class="etapa-box" hidden></span>';
+  else if(nueva){ const r = document.querySelector('.dec-row'); if(r) r.insertAdjacentHTML('beforebegin', nueva); }
 }
 
 function editarMomento(id, campo, valor){
