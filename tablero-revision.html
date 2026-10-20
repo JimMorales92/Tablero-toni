@@ -331,7 +331,7 @@ dl.datos dd{margin:0;overflow-wrap:anywhere}
 .adj-head{display:flex;align-items:center;gap:8px;font-size:13.5px}
 .adj-head .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .adj-head a,.adj-head button{font-size:13px;background:none;border:0;padding:0;color:var(--brass-ink);font-weight:600}
-.adj-item iframe{display:block;width:100%;height:64px;border:0;margin-top:6px;border-radius:6px}
+.adj-item iframe{display:block;width:100%;height:96px;border:0;margin-top:6px;border-radius:6px}
 .adj-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
 .rec{background:var(--danger)!important;border-color:var(--danger)!important;color:#fff!important}
 .st{font-size:13px;color:var(--muted)}
@@ -1078,6 +1078,7 @@ function adjuntosPanel(it, seccion, titulo, hint){
     const audio = a.tipo === 'audio' || /^audio\//.test(a.mime || '');
     return '<div class="adj-item"><div class="adj-head"><span class="nm" title="' + esc(a.nombre) + '">' + esc(a.nombre || 'Archivo') + '</span>'
       + '<a href="https://drive.google.com/file/d/' + encodeURIComponent(a.driveId) + '/view" target="_blank" rel="noopener">Abrir</a>'
+      + '<a href="https://drive.google.com/uc?export=download&id=' + encodeURIComponent(a.driveId) + '" target="_blank" rel="noopener">Descargar</a>'
       + (LECTURA ? '' : '<button data-act="quitarAdj" data-a="' + esc(a.id) + '">Quitar</button>')
       + '</div>' + (audio ? '<iframe src="https://drive.google.com/file/d/' + encodeURIComponent(a.driveId) + '/preview" title="Audio"></iframe>' : '') + '</div>';
   }).join('');
@@ -1151,6 +1152,8 @@ function versionDetalle(it, v, editable){
     + (editable ? '<button class="pill' + (c.status === 'resuelto' ? ' ok' : '') + '" data-act="tcEstado" data-a="' + v.id + '" data-b="' + esc(c.id) + '">' + (c.status === 'resuelto' ? 'Resuelto' : 'Pendiente') + '</button>' : '<span class="pill' + (c.status === 'resuelto' ? ' ok' : '') + '">' + (c.status === 'resuelto' ? 'Resuelto' : 'Pendiente') + '</span>')
     + '</div><div>' + esc(c.comment) + '</div></div>').join('');
   const audios = v.audioNotes.map(a => '<div class="adj-item"><div class="adj-head"><span class="nm">' + esc(a.nombre || 'Nota de audio') + '</span>'
+    + '<a href="https://drive.google.com/file/d/' + encodeURIComponent(a.driveId) + '/view" target="_blank" rel="noopener">Abrir</a>'
+    + '<a href="https://drive.google.com/uc?export=download&id=' + encodeURIComponent(a.driveId) + '" target="_blank" rel="noopener">Descargar</a>'
     + (editable ? '<button data-act="quitarAudio" data-a="' + v.id + '" data-b="' + esc(a.id) + '">Quitar</button>' : '')
     + '</div><iframe src="https://drive.google.com/file/d/' + encodeURIComponent(a.driveId) + '/preview" title="Nota de audio"></iframe></div>').join('');
   const grabando = rec && rec.destino === 'aud:' + v.id;
