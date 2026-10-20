@@ -168,6 +168,7 @@ a{color:var(--brass-ink)}
 .col-more{align-self:center}
 
 .card{
+  flex-shrink:0;
   background:var(--surface);border:1px solid var(--line);border-radius:10px;
   box-shadow:var(--shadow);cursor:pointer;text-align:left;padding:0;
   display:flex;flex-direction:column;overflow:hidden;width:100%;
@@ -712,19 +713,23 @@ function moverA(id, estado, extra){
 /* =========================================================
    Tablero de columnas
    ========================================================= */
-/* Mes al que pertenece un video: el que se le puso a mano, o el de su publicación,
-   o el del concierto, o el de cuando se creó. */
+/* Mes al que pertenece un video: el mes en que se sube (o se subió).
+   La fecha del concierto no cuenta. Si todavía no tiene fecha de publicación
+   y sigue en el flujo, aparece en el mes actual para no perderlo de vista. */
+function campoFechaPub(it){
+  if(it.estado === 'publicado') return 'publicado.fecha';
+  if(it.estado === 'publicar' || it.publicacion.fecha) return 'publicacion.fecha';
+  return 'fechas.publicacion';
+}
 function mesDe(it){
-  if(/^\d{4}-\d{2}$/.test(it.mes || '')) return { mes: it.mes, por: 'manual' };
-  const fuentes = [
-    [it.publicado.fecha, 'la fecha de publicación'], [it.publicacion.fecha, 'la fecha de publicación'],
-    [it.fechas.publicacion, 'la fecha de publicación'], [it.origen.concierto, 'la fecha del concierto'], [it.creado, 'cuándo se creó']
-  ];
-  for(const [f, por] of fuentes){
-    const d = fechaLocal(f);
-    if(d) return { mes: d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'), por };
+  const f = it.publicado.fecha || it.publicacion.fecha || it.fechas.publicacion;
+  const d = fechaLocal(f);
+  if(d) return { mes: d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'), conFecha: true };
+  if(it.estado === 'publicado' || it.estado === 'archivado'){
+    const c = fechaLocal(it.creado);
+    if(c) return { mes: c.getFullYear() + '-' + String(c.getMonth()+1).padStart(2,'0'), conFecha: false };
   }
-  return { mes: mesActual(), por: 'cuándo se creó' };
+  return { mes: mesActual(), conFecha: false };
 }
 function mesNombre(m, corto){
   const [a, mm] = m.split('-').map(Number);
@@ -793,7 +798,7 @@ function cardHtml(it){
     chips.push('<span class="chip' + (n ? '' : ' warn') + '">' + (n ? n + ' de ' + CAMPOS_INSTR.length + ' campos' : 'Sin instrucciones') + '</span>');
   }
   if(['listo','edicion','revision'].includes(k)) chips.push(chipFecha('Entrega', it.fechas.entregaRevision, k !== 'revision'));
-  if(['listo','edicion','revision','publicar'].includes(k)) chips.push(chipFecha('Publica', it.publicacion.fecha || it.fechas.publicacion, k === 'publicar'));
+  if(['instrucciones','listo','edicion','revision','publicar'].includes(k)) chips.push(chipFecha('Se sube', it.publicacion.fecha || it.fechas.publicacion, k === 'publicar'));
   if(k === 'listo' && !it.fechas.entregaRevision && !it.fechas.publicacion) chips.push('<span class="chip warn">Faltan las fechas</span>');
   if(k === 'revision') chips.push(turnoRevision(it));
   if(k === 'publicado'){
@@ -976,9 +981,9 @@ function renderSheet(conservarScroll){
       + '</div></div>')
     + '</div>'
     + '<p class="sh-sub">' + esc(desde.n) + (it.origen.concierto ? '. Concierto del ' + esc(fLarga(it.origen.concierto).toLowerCase()) + '.' : '.')
-    + '<span class="mes-ctl"><label for="f-mes">Mes:</label>' + (LECTURA ? esc(mesNombre(mesDe(it).mes)) : '<input id="f-mes" type="month" data-path="mes" value="' + esc(mesDe(it).mes) + '" title="' + (mesDe(it).por === 'manual' ? 'Puesto a mano' : 'Automático, por ' + esc(mesDe(it).por)) + '">')
-    + (mesDe(it).por === 'manual' || LECTURA ? '' : '<span class="st">(automático por ' + esc(mesDe(it).por) + ')</span>')
-    + (mesDe(it).por === 'manual' && !LECTURA ? '<button class="btn ghost sm" data-act="mesAuto">Volver a automático</button>' : '') + '</span></p>'
+    + '<span class="mes-ctl"><label for="f-pubmes">Se sube:</label>' + (LECTURA ? esc(fCorta(get(it, campoFechaPub(it))) || 'sin fecha')
+      : '<input id="f-pubmes" type="date" data-path="' + campoFechaPub(it) + '" value="' + esc(get(it, campoFechaPub(it)) || '') + '">')
+    + '<span class="st">' + (mesDe(it).conFecha ? 'Cuenta en ' + esc(mesNombre(mesDe(it).mes).toLowerCase()) : 'Sin fecha: se ve en el mes actual') + '</span></span></p>'
     + railHtml(it)
     + nextHtml(it)
     + '</div>'
@@ -1240,7 +1245,6 @@ const ACCIONES = {
   toggleArch(){ verArchivados = !verArchivados; renderBoard(); if(verArchivados) setTimeout(() => { const b = $('#board'); b.scrollTo({ left: b.scrollWidth, behavior:'smooth' }); }, 30); },
   verPublicados(){ publicadosTodos = true; renderBoard(); },
   mes(el){ mesActivo = el.dataset.a; try{ localStorage.setItem('tablero-mes', mesActivo); }catch(e){} publicadosTodos = false; renderBoard(); },
-  mesAuto(){ cambiar(abierto, [{ op:'set', path:'mes', value:'' }]); renderSheet(); renderBoard(); },
   linksTodos(){ $('#mas-menu').hidden = true; modalLinks(); },
   cerrar(){ cerrar(); },
   fondo(el, e){ if(e.target === el) cerrar(); },
@@ -1681,7 +1685,7 @@ document.addEventListener('change', e => {
   if(el.matches('[data-path]') && (el.type === 'date' || el.type === 'url' || el.type === 'month')){
     const idCampo = el.dataset.item || abierto;
     enviar(idCampo); renderBoard();
-    if(abierto && !el.dataset.item && (/\.drive$/.test(el.dataset.path) || el.dataset.path === 'mes')) renderSheet();
+    if(abierto && !el.dataset.item && (/\.drive$/.test(el.dataset.path) || /fecha|publicacion$/.test(el.dataset.path))) renderSheet();
   }
 });
 document.addEventListener('focusout', e => { if(e.target.matches && e.target.matches('[data-path]')){ const id = e.target.dataset.item || abierto; if(id) enviar(id); } });
