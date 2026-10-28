@@ -39,6 +39,7 @@
   --s-publicado:#2F8A47;
   --s-archivado:#959DA9;
   --radius:12px;
+  --vmax:clamp(360px,calc(100vh - 250px),1000px);
   --display:'Bricolage Grotesque',system-ui,sans-serif;
   --body:'Figtree',system-ui,sans-serif;
   color-scheme:light;
@@ -264,17 +265,35 @@ a{color:var(--brass-ink)}
 
 .sheet-body{flex:1;overflow-y:auto;padding:20px clamp(16px,3vw,28px) 60px}
 .grid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:22px;align-items:start}
+/* cuando el video es vertical, la columna se ensancha para que el video use todo el alto */
+.grid.vert{grid-template-columns:minmax(0,calc(var(--vmax) * 0.5625)) minmax(0,1fr)}
 .grid.solo{grid-template-columns:minmax(0,760px)}
 .vid-col{position:sticky;top:0;display:flex;flex-direction:column;gap:10px}
 .frame{background:#000;border-radius:var(--radius);overflow:hidden;position:relative}
 .frame iframe{display:block;width:100%;height:100%;border:0}
 .frame.h{aspect-ratio:16/9}
-.frame.v{aspect-ratio:9/16;max-height:72vh;margin:0 auto;width:auto;height:72vh;max-width:100%}
+.frame.v{aspect-ratio:9/16;width:100%;height:auto;max-height:var(--vmax)}
+/* el video vertical y su barra de botones, que va encima para no robarle alto */
+.vwrap{position:relative;width:min(100%,calc(var(--vmax) * 0.5625));margin:0 auto}
+.vwrap .vid-links{
+  position:absolute;left:8px;top:8px;max-width:calc(100% - 16px);
+  padding:5px;border-radius:10px;background:rgba(10,13,18,.6);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)
+}
+.vwrap .vid-links{flex-wrap:nowrap}
+.vwrap .vid-links .btn{padding:4px 9px;font-size:12.5px}
+.vwrap .vid-links .btn:not(.brass){background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff}
+.vwrap .vid-links .btn:not(.brass):hover{background:rgba(255,255,255,.28)}
 .frame-empty{
   border:1.5px dashed var(--line-strong);border-radius:var(--radius);padding:22px 18px;
   color:var(--muted);font-size:14px;background:var(--surface)
 }
 .vid-links{display:flex;gap:6px;flex-wrap:wrap}
+/* ver el video en grande, sobre toda la ventana */
+.cine{position:fixed;inset:0;z-index:80;background:rgba(8,10,14,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px}
+.cine .frame{aspect-ratio:9/16;height:calc(100vh - 76px);width:auto;max-width:calc(100vw - 24px);box-shadow:var(--shadow-lift)}
+.cine .frame iframe{width:100%;height:100%}
+.cine-bar{display:flex;gap:8px;align-items:center}
 .links{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 14px 4px;margin-bottom:16px}
 .links .row2{gap:10px}
 .links h4{font-family:var(--display);font-weight:650;font-size:15px;margin:0 0 10px}
@@ -386,9 +405,9 @@ button.pill{cursor:pointer}
 .lectura .solo-edita{display:none!important}
 
 @media (max-width: 860px){
-  .grid{grid-template-columns:1fr}
+  :root{--vmax:clamp(340px,calc(100vh - 210px),760px)}
+  .grid,.grid.vert{grid-template-columns:1fr}
   .vid-col{position:static}
-  .frame.v{height:62vh}
   .row2{grid-template-columns:1fr}
   .tc-new{grid-template-columns:1fr 1fr}
   .tc-new .inp:nth-child(3),.tc-new .btn{grid-column:1/-1}
@@ -999,7 +1018,21 @@ function renderSheet(conservarScroll){
   const body = root.querySelector('.sheet-body');
   if(body) body.scrollTop = scroll;
   if(LECTURA) root.querySelectorAll('.inp, textarea').forEach(x => { x.readOnly = true; if(x.tagName === 'SELECT') x.disabled = true; });
+  ajustarAltoVideo();
 }
+
+/* El video vertical ocupa todo el alto libre de la ventana: se mide lo que ocupan
+   la cabecera y las pestañas en vez de calcularlo a ojo. */
+function ajustarAltoVideo(){
+  const sheet = document.querySelector('.sheet'); if(!sheet) return;
+  const head = sheet.querySelector('.sheet-head'), pes = sheet.querySelector('.tabs');
+  if(!head || !pes) return;
+  const angosto = window.innerWidth <= 860;
+  const libre = window.innerHeight - head.offsetHeight - pes.offsetHeight - (angosto ? 24 : 40);
+  sheet.style.setProperty('--vmax', Math.round(Math.max(340, Math.min(libre, angosto ? 760 : 1000))) + 'px');
+}
+let avTimer;
+window.addEventListener('resize', () => { clearTimeout(avTimer); avTimer = setTimeout(ajustarAltoVideo, 150); });
 
 function cuerpoTab(it){
   if(tab === 'instrucciones') return tabInstrucciones(it);
@@ -1009,11 +1042,16 @@ function cuerpoTab(it){
 }
 
 /* ---------- video ---------- */
-function videoHtml(url, vertical, vacio){
+function videoHtml(url, vertical, vacio, extra){
   const emb = driveEmbed(url);
   if(!emb) return '<div class="frame-empty">' + vacio + '</div>';
-  return '<div class="frame ' + (vertical ? 'v' : 'h') + '"><iframe src="' + esc(emb) + '" allow="autoplay; fullscreen" allowfullscreen title="Video"></iframe></div>'
-    + '<div class="vid-links"><a class="btn sm" href="' + esc(driveVer(url)) + '" target="_blank" rel="noopener">Abrir en Drive</a></div>';
+  const marco = '<div class="frame ' + (vertical ? 'v' : 'h') + '"><iframe src="' + esc(emb) + '" allow="autoplay; fullscreen" allowfullscreen title="Video"></iframe></div>';
+  const botones = '<div class="vid-links">'
+    + (vertical ? '<button class="btn sm" data-act="ampliar" data-a="' + esc(url) + '" title="Ver el video en grande">Ampliar</button>' : '')
+    + '<a class="btn sm" href="' + esc(driveVer(url)) + '" target="_blank" rel="noopener">' + (vertical ? 'Drive' : 'Abrir en Drive') + '</a>'
+    + (extra || '') + '</div>';
+  /* en vertical los botones flotan sobre el video para que ocupe todo el alto */
+  return vertical ? '<div class="vwrap">' + marco + botones + '</div>' : marco + botones;
 }
 function campo(it, path, etiqueta, opts){
   opts = opts || {};
@@ -1121,9 +1159,9 @@ function tabVersiones(it){
   const v = vs.find(x => x.id === sel);
   const esUltima = v === ultimaVersion(it);
   const editable = esUltima && !LECTURA;
-  return '<div class="grid">'
-    + '<div class="vid-col">' + videoHtml(v.drive, true, 'Esta versión no tiene link de video.')
-    + (driveDescarga(v.driveHD) ? '<a class="btn sm" href="' + esc(driveDescarga(v.driveHD)) + '" target="_blank" rel="noopener">Descargar en HD</a>' : '')
+  return '<div class="grid vert">'
+    + '<div class="vid-col">' + videoHtml(v.drive, true, 'Esta versión no tiene link de video.',
+        driveDescarga(v.driveHD) ? '<a class="btn sm" href="' + esc(driveDescarga(v.driveHD)) + '" target="_blank" rel="noopener">HD &#8595;</a>' : '')
     + '</div>'
     + '<div>' + nav + linksVersion(it, v) + versionDetalle(it, v, editable) + '</div></div>';
 }
@@ -1218,9 +1256,9 @@ function tabPublicacion(it){
   const hd = v && (v.driveHD || v.drive);
   const pub = it.estado === 'publicado';
   const listo = it.estado === 'publicar' || pub;
-  return '<div class="grid">'
-    + '<div class="vid-col">' + videoHtml(v && v.drive, true, 'Todavía no hay una versión aprobada.')
-    + (hd ? '<a class="btn brass" href="' + esc(driveDescarga(hd)) + '" target="_blank" rel="noopener" data-act="descargaHD">' + (it.descargadoHD ? 'Descargar otra vez' : 'Descargar ' + (v.driveHD ? 'en HD' : 'video')) + '</a>' : '')
+  return '<div class="grid vert">'
+    + '<div class="vid-col">' + videoHtml(v && v.drive, true, 'Todavía no hay una versión aprobada.',
+        hd ? '<a class="btn sm brass" href="' + esc(driveDescarga(hd)) + '" target="_blank" rel="noopener" data-act="descargaHD">' + (it.descargadoHD ? 'Otra vez &#8595;' : (v.driveHD ? 'HD &#8595;' : 'Descargar &#8595;')) + '</a>' : '')
     + '</div>'
     + '<div>'
     + (listo ? '' : '<p class="historico">Esta sección se llena cuando el video ya está aprobado. Puedes adelantar datos si quieres.</p>')
@@ -1376,6 +1414,14 @@ const ACCIONES = {
     renderSheet();
   },
   grabar(el){ toggleGrabar(el.dataset.a); },
+  ampliar(el){
+    const url = el.dataset.a, emb = driveEmbed(url);
+    if(!emb) return;
+    $('#modal-root').innerHTML = '<div class="cine" data-act="cerrarModal" role="dialog" aria-modal="true" aria-label="Video en grande">'
+      + '<div class="frame"><iframe src="' + esc(emb) + '" allow="autoplay; fullscreen" allowfullscreen title="Video"></iframe></div>'
+      + '<div class="cine-bar"><a class="btn sm" href="' + esc(driveVer(url)) + '" target="_blank" rel="noopener">Abrir en Drive</a>'
+      + '<button class="btn sm" data-act="cerrarModal">Cerrar</button></div></div>';
+  },
   srt(el){ descargarSrt(el.dataset.a); },
   buscarClips(el){ buscarClips(el); },
   exportar(){ exportarCorrecciones(); }
