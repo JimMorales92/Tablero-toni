@@ -1029,7 +1029,17 @@ function ajustarAltoVideo(){
   if(!head || !pes) return;
   const angosto = window.innerWidth <= 860;
   const libre = window.innerHeight - head.offsetHeight - pes.offsetHeight - (angosto ? 24 : 40);
-  sheet.style.setProperty('--vmax', Math.round(Math.max(340, Math.min(libre, angosto ? 760 : 1000))) + 'px');
+  const tope = angosto ? 760 : 1000;
+  const col = sheet.querySelector('.vid-col');
+  const wrap = col && col.querySelector('.vwrap');
+  const poner = () => {
+    /* lo que va debajo del video en esa columna (fechas, link del clip) también necesita caber */
+    let debajo = 0;
+    if(wrap && !angosto) [...col.children].forEach(ch => { if(ch !== wrap) debajo += ch.offsetHeight + 10; });
+    sheet.style.setProperty('--vmax', Math.round(Math.max(300, Math.min(libre - debajo, tope))) + 'px');
+  };
+  poner();
+  if(wrap && !angosto) poner();   // el ancho de la columna cambia: se vuelve a medir ya asentado
 }
 let avTimer;
 window.addEventListener('resize', () => { clearTimeout(avTimer); avTimer = setTimeout(ajustarAltoVideo, 150); });
@@ -1077,15 +1087,14 @@ function tabMomento(it){
     ['Archivo del clip', o.clip]
   ].filter(d => d[1]);
   const dec = it.seleccion.decision;
-  const clip = videoHtml(o.drive, false, LECTURA ? 'El clip de este momento todavía no está listo.' : 'Este momento todavía no tiene clip. ' + (o.clip ? 'Súbelo a Drive como <b>' + esc(o.clip) + '</b> y usa Más → Buscar clips en Drive, o pega el link abajo.' : 'Pega el link de Drive abajo.'));
-  return '<div class="grid">'
-    + '<div class="vid-col">' + clip
-    + (LECTURA ? '' : '<div class="links"><h4>Link del clip</h4>' + campo(it, 'origen.drive', 'Link de Drive del clip', { tipo:'url', ph:'https://drive.google.com/file/d/…' }) + '</div>')
-    + '</div>'
+  const clip = videoHtml(o.drive, true, LECTURA ? 'El clip de este momento todavía no está listo.' : 'Este momento todavía no tiene clip. ' + (o.clip ? 'Súbelo a Drive como <b>' + esc(o.clip) + '</b> y usa Más → Buscar clips en Drive, o pega el link abajo.' : 'Pega el link de Drive abajo.'));
+  return '<div class="grid vert">'
+    + '<div class="vid-col">' + clip + '</div>'
     + '<div>'
     + '<div class="panel"><h3>' + (o.concierto ? esc(fLarga(o.concierto)) : 'Momento') + '</h3>'
     + (datos.length ? '<dl class="datos">' + datos.map(d => '<dt>' + esc(d[0]) + '</dt><dd>' + esc(d[1]) + '</dd>').join('') + '</dl>' : '<p class="hint">Sin datos del pedal.</p>')
     + campo(it, 'origen.notaJim', 'Nota de Jim', { ph:'Lo que viste tú en este momento' })
+    + (LECTURA ? '' : campo(it, 'origen.drive', 'Link de Drive del clip', { tipo:'url', ph:'https://drive.google.com/file/d/…' }))
     + '</div>'
     + '<div class="panel"><h3>¿Qué pasa en este momento?</h3><p class="hint">Quién toca, qué se ve, qué reacción hubo y por qué llamó la atención. Esto alimenta el guion.</p>'
     + (LECTURA ? '' : '<div class="decide"><button class="btn no' + (dec === 'no sirve' ? ' on' : '') + '" data-act="decidir" data-a="no sirve" aria-pressed="' + (dec === 'no sirve') + '">No sirve</button><button class="btn si' + (dec === 'sirve' ? ' on' : '') + '" data-act="decidir" data-a="sirve" aria-pressed="' + (dec === 'sirve') + '">Sirve</button></div>')
@@ -1098,13 +1107,14 @@ function tabMomento(it){
 /* ---------- pestaña Instrucciones ---------- */
 function tabInstrucciones(it){
   const destaca = it.estado === 'listo' || it.estado === 'instrucciones';
-  return '<div class="grid">'
-    + '<div class="vid-col">' + videoHtml(it.origen.drive, false, 'Sin clip de referencia.')
-    + '<div class="fechas' + (destaca ? ' destaca' : '') + '"><h3 style="font-family:var(--display);font-size:16px;margin:0 0 10px">Fechas</h3>'
+  return '<div class="grid vert">'
+    + '<div class="vid-col">' + videoHtml(it.origen.drive, true, 'Sin clip de referencia.') + '</div>'
+    + '<div>'
+    + '<div class="fechas' + (destaca ? ' destaca' : '') + '" style="margin-bottom:16px"><h3 style="font-family:var(--display);font-size:16px;margin:0 0 10px">Fechas</h3>'
+    + '<div class="row2">'
     + campo(it, 'fechas.entregaRevision', 'Fecha de entrega de revisión', { tipo:'date' })
     + campo(it, 'fechas.publicacion', 'Fecha de publicación', { tipo:'date' })
     + '</div></div>'
-    + '<div>'
     + '<div class="panel"><h3>Lo que necesita el editor</h3><p class="hint">Todo lo que haga falta para editar sin tener que preguntar.</p>'
     + CAMPOS_INSTR.map(c => campo(it, 'instrucciones.' + c[0], c[1], { ph:c[2], rows: c[0] === 'guion' || c[0] === 'instrucciones' ? 4 : 2 })).join('')
     + '</div>'
