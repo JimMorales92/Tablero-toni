@@ -1,0 +1,10 @@
+{
+  "name": "Máquina Tonisaxmusic",
+  "short_name": "Máquina Toni",
+  "display": "standalone",
+  "background_color": "#051d41",
+  "theme_color": "#051d41",
+  "icons": [
+    { "src": "favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
