@@ -961,7 +961,7 @@ function nextHtml(it){
       btns = '<button class="btn primary" data-act="irNuevaVersion">Subir V' + (v.n + 1) + '</button>';
     }else{
       txt = '<b>La V' + v.n + ' está esperando la revisión de Toni.</b>';
-      btns = '<button class="btn" data-act="pedirCambios" data-a="' + v.id + '">Pedir cambios</button><button class="btn primary" data-act="aprobar" data-a="' + v.id + '">Aprobar V' + v.n + '</button>';
+      btns = '<button class="btn" data-act="irNuevaVersion">Subir V' + (v.n + 1) + '</button><button class="btn" data-act="pedirCambios" data-a="' + v.id + '">Pedir cambios</button><button class="btn primary" data-act="aprobar" data-a="' + v.id + '">Aprobar V' + v.n + '</button>';
     }
   }else if(k === 'publicar'){
     txt = '<b>Aprobado.</b> Completa los datos de publicación y márcalo cuando ya esté arriba.';
@@ -1145,9 +1145,10 @@ function adjuntosPanel(it, seccion, titulo, hint){
 function verEstado(v){
   if(v.estado === 'aprobada') return '<span class="pill ok">Aprobada</span>';
   if(v.estado === 'cambios') return '<span class="pill flag">Cambios pedidos</span>';
+  if(v.estado === 'reemplazada') return '<span class="pill">Reemplazada</span>';
   return '<span class="pill wait">Por revisar</span>';
 }
-function colorVer(v){ return v.estado === 'aprobada' ? 'var(--ok)' : v.estado === 'cambios' ? 'var(--danger)' : 'var(--brass)'; }
+function colorVer(v){ return v.estado === 'aprobada' ? 'var(--ok)' : v.estado === 'cambios' ? 'var(--danger)' : v.estado === 'reemplazada' ? 'var(--muted, #8a8f98)' : 'var(--brass)'; }
 function lineaPill(s){
   if(s === 'aprobado') return ['pill ok', 'Aprobada'];
   if(s === 'cambio solicitado') return ['pill flag', 'Cambiar'];
@@ -1156,7 +1157,7 @@ function lineaPill(s){
 
 function tabVersiones(it){
   const vs = it.versiones;
-  const formNueva = (!vs.length || ultimaVersion(it).estado === 'cambios') && !LECTURA && !['publicar','publicado'].includes(it.estado);
+  const formNueva = (!vs.length || ultimaVersion(it).estado !== 'aprobada') && !LECTURA && !['publicar','publicado'].includes(it.estado);
   let sel = verSel[it.id];
   if(sel === 'nueva' && !formNueva) sel = null;
   if(sel !== 'nueva' && !vs.some(v => v.id === sel)) sel = vs.length ? vs[vs.length - 1].id : (formNueva ? 'nueva' : null);
@@ -1250,7 +1251,7 @@ function formVersion(it){
   const prev = ultimaVersion(it);
   const n = (prev ? prev.n : 0) + 1;
   const guionPrev = prev ? prev.scriptLines.map(l => (l.status === 'cambio solicitado' && (l.comment || '').trim()) ? l.comment.trim() : l.text).join('\n') : (it.instrucciones.guion || '');
-  return '<div class="panel" id="form-version"><h3>Subir V' + n + '</h3><p class="hint">' + (prev ? 'Toni pidió cambios en la V' + prev.n + '. El guion y el copy ya traen lo de la versión anterior con sus correcciones.' : 'La primera versión pasa el video a En revisión.') + '</p>'
+  return '<div class="panel" id="form-version"><h3>Subir V' + n + '</h3><p class="hint">' + (prev ? (prev.estado === 'cambios' ? 'Toni pidió cambios en la V' + prev.n + '. El guion y el copy ya traen lo de la versión anterior con sus correcciones.' : 'La V' + prev.n + ' sigue por revisar. Al enviar la V' + n + ', la V' + prev.n + ' queda como historial (Reemplazada). El guion y el copy ya traen lo de la V' + prev.n + '.') : 'La primera versión pasa el video a En revisión.') + '</p>'
     + '<label class="field"><span>Link de Drive del video (para revisar)</span><input class="inp" id="nv-drive" type="url" placeholder="https://drive.google.com/file/d/…"></label>'
     + '<label class="field"><span>Link de Drive en HD (opcional)</span><input class="inp" id="nv-hd" type="url" placeholder="https://drive.google.com/file/d/…"></label>'
     + '<label class="field"><span>Guion: sube el .srt de CapCut o escribe una línea por renglón</span><input class="inp" id="nv-srt" type="file" accept=".srt"><textarea class="inp" id="nv-guion" rows="5" style="margin-top:6px">' + esc(guionPrev) + '</textarea></label>'
@@ -1486,6 +1487,7 @@ function enviarVersion(){
   nvTiempos = [];
   verSel[it.id] = v.id;
   const ops = [{ op:'push', path:'versiones', value: v }];
+  if(prev && prev.estado === 'pendiente') ops.push({ op:'set', path:'versiones.@' + prev.id + '.estado', value:'reemplazada' });
   if(it.estado !== 'revision') moverA(it.id, 'revision', ops);
   else { cambiar(it.id, ops); renderSheet(false); renderBoard(); }
 }
