@@ -272,6 +272,20 @@ a{color:var(--brass-ink)}
 .frame{background:#000;border-radius:var(--radius);overflow:hidden;position:relative}
 .frame iframe{display:block;width:100%;height:100%;border:0}
 .frame.h{aspect-ratio:16/9}
+/* galería de hooks: todos los inicios de un video, de un vistazo */
+.hooks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(164px,1fr));gap:16px}
+.hook-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.hook-card .frame{border-radius:0}
+.hook-card .frame.v{max-height:none}
+.hook-card .hc-vacio{aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;background:var(--surface-3);color:var(--faint);font-size:12.5px}
+.hook-card .hc-body{padding:10px;display:flex;flex-direction:column;gap:7px;flex:1}
+.hook-card .hc-top{display:flex;align-items:center;gap:7px}
+.hook-card .hc-top b{font-family:var(--display);font-size:14.5px}
+.hook-card .hc-nota{font-size:12.5px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.hook-card .hc-acts{display:flex;gap:6px;margin-top:auto}
+.hook-card .hc-acts .btn{flex:1;justify-content:center;text-align:center;padding:5px 8px;font-size:12.5px}
+.hooks-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.hooks-bar .hint{margin:0}
 .frame.v{aspect-ratio:9/16;width:100%;height:auto;max-height:var(--vmax)}
 /* el video vertical y su barra de botones, que va encima para no robarle alto */
 .vwrap{position:relative;width:min(100%,calc(var(--vmax) * 0.5625));margin:0 auto}
@@ -1160,23 +1174,58 @@ function colorHook(h){ return h.estado === 'sirve' ? 'var(--ok)' : h.estado === 
 function tabHooks(it){
   const hs = it.hooks;
   let sel = hookSel[it.id];
-  if(sel !== 'nuevo' && !hs.some(h => h.id === sel)) sel = hs.length ? hs[0].id : (LECTURA ? null : 'nuevo');
-  if(sel === 'nuevo' && LECTURA) sel = hs.length ? hs[0].id : null;
+  const valida = sel === 'todos' || sel === 'nuevo' || hs.some(h => h.id === sel);
+  if(!valida) sel = hs.length ? 'todos' : (LECTURA ? null : 'nuevo');
+  if(sel === 'nuevo' && LECTURA) sel = hs.length ? 'todos' : null;
+  if(sel === 'todos' && !hs.length) sel = LECTURA ? null : 'nuevo';
   hookSel[it.id] = sel;
   if(!sel) return '<div class="panel empty">Todavía no hay hooks para este video.</div>';
-  const chips = hs.map(h => '<button data-act="hookSel" data-a="' + h.id + '" aria-pressed="' + (sel === h.id) + '"><span class="dot" style="background:' + colorHook(h) + '"></span>H' + h.n + '</button>').join('')
+  const chips = (hs.length ? '<button data-act="hookSel" data-a="todos" aria-pressed="' + (sel === 'todos') + '">Todos</button>' : '')
+    + hs.map(h => '<button data-act="hookSel" data-a="' + h.id + '" aria-pressed="' + (sel === h.id) + '"><span class="dot" style="background:' + colorHook(h) + '"></span>H' + h.n + '</button>').join('')
     + (LECTURA ? '' : '<button data-act="hookSel" data-a="nuevo" aria-pressed="' + (sel === 'nuevo') + '">+ Hook</button>');
   const nav = '<div class="vers" role="group" aria-label="Hooks">' + chips + '</div>';
   if(sel === 'nuevo') return '<div class="grid solo"><div>' + nav + formHook(it) + '</div></div>';
+  if(sel === 'todos') return '<div>' + nav + galeriaHooks(it) + '</div>';
   const h = hs.find(x => x.id === sel);
   return '<div class="grid vert">'
     + '<div class="vid-col">' + videoHtml(h.drive, true, 'Este hook todavía no tiene link de video.',
-        driveDescarga(h.driveHD) ? '<a class="btn sm" href="' + esc(driveDescarga(h.driveHD)) + '" target="_blank" rel="noopener">HD &#8595;</a>' : '')
+        hookDescarga(h) ? '<a class="btn sm" href="' + esc(hookDescarga(h)) + '" target="_blank" rel="noopener">' + (h.driveHD ? 'HD &#8595;' : 'Bajar &#8595;') + '</a>' : '')
     + '</div>'
     + '<div>' + nav + hookResumen(it, h) + linksHook(it, h) + hookDetalle(it, h) + '</div></div>';
 }
 
+/* Todos los hooks a la vez, con su descarga. Lo que Toni necesita para armar el reel en Edits. */
+function hookDescarga(h){ return driveDescarga(h.driveHD || h.drive); }
+
+function galeriaHooks(it){
+  const hs = it.hooks;
+  const conLink = hs.filter(h => hookDescarga(h));
+  const tarjetas = hs.map(h => {
+    const [cls, lab] = hookPill(h.estado);
+    const emb = driveEmbed(h.drive);
+    const dl = hookDescarga(h);
+    return '<div class="hook-card">'
+      + (emb ? '<div class="frame v"><iframe src="' + esc(emb) + '" allow="fullscreen" allowfullscreen title="Hook ' + h.n + '"></iframe></div>'
+             : '<div class="hc-vacio">Sin link de video</div>')
+      + '<div class="hc-body"><div class="hc-top"><b>H' + h.n + '</b><span class="' + cls + '">' + lab + '</span></div>'
+      + (h.nota ? '<div class="hc-nota">' + esc(h.nota) + '</div>' : '')
+      + '<div class="hc-acts"><button class="btn sm" data-act="hookSel" data-a="' + h.id + '">Revisar</button>'
+      + (dl ? '<a class="btn sm" href="' + esc(dl) + '" target="_blank" rel="noopener">Bajar &#8595;</a>' : '')
+      + '</div></div></div>';
+  }).join('');
+  const barra = '<div class="hooks-bar">'
+    + (conLink.length ? '<button class="btn brass" data-act="hooksBajarTodos">Descargar los ' + conLink.length + ' hooks</button>' : '')
+    + '<span class="hint">' + esc(hookResumenTexto(it)) + '</span>'
+    + '<span class="st" id="st-hooks" role="status"></span></div>';
+  return barra + (tarjetas ? '<div class="hooks-grid">' + tarjetas + '</div>' : '<div class="panel empty">Todavía no hay hooks.</div>');
+}
+
 function hookResumen(it, h){
+  const t = hookResumenTexto(it);
+  return t ? '<p class="hint" style="margin:0 0 12px">' + esc(t) + '</p>' : '';
+}
+
+function hookResumenTexto(it){
   const sirven = it.hooks.filter(x => x.estado === 'sirve').length;
   const faltan = it.hooks.filter(x => !x.estado || x.estado === 'pendiente').length;
   const total = it.hooks.length;
@@ -1187,7 +1236,7 @@ function hookResumen(it, h){
   else if(!sirven) t = 'Ninguno de los ' + total + ' hooks quedó aprobado.';
   else if(sirven === total) t = 'Los ' + total + ' hooks están aprobados.';
   else t = sirven + ' de ' + total + ' hooks aprobados.';
-  return t ? '<p class="hint" style="margin:0 0 12px">' + esc(t) + '</p>' : '';
+  return t;
 }
 
 function linksHook(it, h){
@@ -1426,6 +1475,19 @@ const ACCIONES = {
   irNuevaVersion(){ tab = 'versiones'; verSel[abierto] = 'nueva'; renderSheet(false); setTimeout(() => { const f = $('#nv-drive'); if(f) f.focus(); }, 30); },
   verSel(el){ verSel[abierto] = el.dataset.a; renderSheet(); },
   hookSel(el){ hookSel[abierto] = el.dataset.a; renderSheet(false); },
+  hooksBajarTodos(){
+    const it = itemPor(abierto);
+    const links = it.hooks.map(hookDescarga).filter(Boolean);
+    if(!links.length) return;
+    estadoEn('st-hooks', 'Pidiendo ' + links.length + (links.length === 1 ? ' descarga…' : ' descargas…'));
+    links.forEach((u, i) => setTimeout(() => {
+      const f = document.createElement('iframe');
+      f.style.display = 'none'; f.src = u;
+      document.body.appendChild(f);
+      setTimeout(() => f.remove(), 90000);
+      if(i === links.length - 1) estadoEn('st-hooks', 'Listo. Si el navegador pregunta, permite las descargas múltiples.');
+    }, i * 900));
+  },
   hookAgregar(){
     const it = itemPor(abierto);
     const drive = $('#nh-drive').value.trim();
