@@ -499,6 +499,7 @@ function mesActual(){ const d = new Date(); return d.getFullYear() + '-' + Strin
 let abierto = null;        // id del video abierto
 let tab = null;            // pestaña del detalle
 let verSel = {};           // versión elegida por video
+let hookSel = {};          // hook elegido por video
 let publicadosTodos = false;
 let rec = null;            // grabación en curso
 let animarHoja = false;
@@ -550,6 +551,7 @@ function normalizar(it){
   it.origen = it.origen || {}; it.seleccion = it.seleccion || {}; it.instrucciones = it.instrucciones || {};
   it.adjuntos = Array.isArray(it.adjuntos) ? it.adjuntos : []; it.fechas = it.fechas || {};
   it.versiones = Array.isArray(it.versiones) ? it.versiones : []; it.publicacion = it.publicacion || {};
+  it.hooks = Array.isArray(it.hooks) ? it.hooks : [];
   it.publicado = it.publicado || {}; it.archivado = it.archivado || {}; it.historial = it.historial || [];
   it.versiones.forEach(v => {
     v.scriptLines = Array.isArray(v.scriptLines) ? v.scriptLines : [];
@@ -901,6 +903,7 @@ const TABS = [
   { k:'momento', n:'Momento' },
   { k:'instrucciones', n:'Instrucciones' },
   { k:'versiones', n:'Versiones' },
+  { k:'hooks', n:'Hooks' },
   { k:'publicacion', n:'Publicación' }
 ];
 function tabPorDefecto(it){
@@ -961,7 +964,7 @@ function nextHtml(it){
       btns = '<button class="btn primary" data-act="irNuevaVersion">Subir V' + (v.n + 1) + '</button>';
     }else{
       txt = '<b>La V' + v.n + ' está esperando la revisión de Toni.</b>';
-      btns = '<button class="btn" data-act="irNuevaVersion">Subir V' + (v.n + 1) + '</button><button class="btn" data-act="pedirCambios" data-a="' + v.id + '">Pedir cambios</button><button class="btn primary" data-act="aprobar" data-a="' + v.id + '">Aprobar V' + v.n + '</button>';
+      btns = '<button class="btn" data-act="pedirCambios" data-a="' + v.id + '">Pedir cambios</button><button class="btn primary" data-act="aprobar" data-a="' + v.id + '">Aprobar V' + v.n + '</button>';
     }
   }else if(k === 'publicar'){
     txt = '<b>Aprobado.</b> Completa los datos de publicación y márcalo cuando ya esté arriba.';
@@ -979,7 +982,7 @@ function nextHtml(it){
 }
 
 function tabsHtml(it){
-  const n = { versiones: it.versiones.length || '', momento: '', instrucciones: '', publicacion: '' };
+  const n = { versiones: it.versiones.length || '', hooks: it.hooks.length || '', momento: '', instrucciones: '', publicacion: '' };
   return '<div class="tabs" role="tablist">' + TABS.map(t =>
     '<button role="tab" aria-selected="' + (tab === t.k) + '" data-act="tab" data-a="' + t.k + '">' + t.n + (n[t.k] ? '<span class="n">' + n[t.k] + '</span>' : '') + '</button>'
   ).join('') + '</div>';
@@ -1047,6 +1050,7 @@ window.addEventListener('resize', () => { clearTimeout(avTimer); avTimer = setTi
 function cuerpoTab(it){
   if(tab === 'instrucciones') return tabInstrucciones(it);
   if(tab === 'versiones') return tabVersiones(it);
+  if(tab === 'hooks') return tabHooks(it);
   if(tab === 'publicacion') return tabPublicacion(it);
   return tabMomento(it);
 }
@@ -1118,7 +1122,7 @@ function tabInstrucciones(it){
     + '<div class="panel"><h3>Lo que necesita el editor</h3><p class="hint">Todo lo que haga falta para editar sin tener que preguntar.</p>'
     + CAMPOS_INSTR.map(c => campo(it, 'instrucciones.' + c[0], c[1], { ph:c[2], rows: c[0] === 'guion' || c[0] === 'instrucciones' ? 4 : 2 })).join('')
     + '</div>'
-    + adjuntosPanel(it, 'instrucciones', 'Material', 'Grabaciones, imágenes, logos o audios con indicaciones. Hasta 25 MB por archivo; lo más pesado, súbelo a Drive y pega el link arriba.')
+    + adjuntosPanel(it, 'instrucciones', 'Material', 'Grabaciones, imágenes, logos o audios con indicaciones. Con Grabar hook dejas la idea de un inicio alternativo. Hasta 25 MB por archivo; lo más pesado, súbelo a Drive y pega el link arriba.')
     + '</div></div>';
 }
 
@@ -1127,17 +1131,100 @@ function adjuntosPanel(it, seccion, titulo, hint){
   const lista = it.adjuntos.filter(a => (a.seccion || 'momento') === seccion);
   const items_ = lista.map(a => {
     const audio = a.tipo === 'audio' || /^audio\//.test(a.mime || '');
-    return '<div class="adj-item"><div class="adj-head"><span class="nm" title="' + esc(a.nombre) + '">' + esc(a.nombre || 'Archivo') + '</span>'
+    return '<div class="adj-item"><div class="adj-head">' + (a.hook ? '<span class="pill flag">Hook</span>' : '') + '<span class="nm" title="' + esc(a.nombre) + '">' + esc(a.nombre || 'Archivo') + '</span>'
       + '<a href="https://drive.google.com/file/d/' + encodeURIComponent(a.driveId) + '/view" target="_blank" rel="noopener">Abrir</a>'
       + '<a href="https://drive.google.com/uc?export=download&id=' + encodeURIComponent(a.driveId) + '" target="_blank" rel="noopener">Descargar</a>'
       + (LECTURA ? '' : '<button data-act="quitarAdj" data-a="' + esc(a.id) + '">Quitar</button>')
       + '</div>' + (audio ? '<iframe src="https://drive.google.com/file/d/' + encodeURIComponent(a.driveId) + '/preview" title="Audio"></iframe>' : '') + '</div>';
   }).join('');
   const grabando = rec && rec.destino === 'adj:' + seccion;
+  const grabHook = rec && rec.destino === 'adj:' + seccion + ':hook';
   return '<div class="panel"><h3>' + esc(titulo) + '</h3>' + (LECTURA ? '' : '<p class="hint">' + esc(hint) + '</p>')
     + (items_ ? '<div class="adj">' + items_ + '</div>' : (LECTURA ? '<p class="hint">Sin archivos.</p>' : ''))
     + (LECTURA ? '' : '<div class="adj-actions"><button class="btn' + (grabando ? ' rec' : '') + '" data-act="grabar" data-a="adj:' + seccion + '">' + (grabando ? 'Detener y guardar' : 'Grabar audio') + '</button>'
+      + (seccion === 'instrucciones' ? '<button class="btn' + (grabHook ? ' rec' : '') + '" data-act="grabar" data-a="adj:' + seccion + ':hook">' + (grabHook ? 'Detener y guardar hook' : 'Grabar hook') + '</button>' : '')
       + '<label class="btn">Subir archivo<input type="file" multiple data-subir="' + seccion + '"></label><span class="st" id="st-adj-' + seccion + '" role="status"></span></div>')
+    + '</div>';
+}
+
+/* ---------- pestaña Hooks ----------
+   Los hooks son los primeros segundos alternativos que Toni mete en Edits.
+   Cuelgan del video, no de la versión: el cuerpo puede cambiar y los hooks siguen. */
+function hookPill(e){
+  if(e === 'sirve') return ['pill ok', 'Sirve'];
+  if(e === 'cambiar') return ['pill flag', 'Cambiar'];
+  return ['pill', 'Sin revisar'];
+}
+function colorHook(h){ return h.estado === 'sirve' ? 'var(--ok)' : h.estado === 'cambiar' ? 'var(--danger)' : 'var(--brass)'; }
+
+function tabHooks(it){
+  const hs = it.hooks;
+  let sel = hookSel[it.id];
+  if(sel !== 'nuevo' && !hs.some(h => h.id === sel)) sel = hs.length ? hs[0].id : (LECTURA ? null : 'nuevo');
+  if(sel === 'nuevo' && LECTURA) sel = hs.length ? hs[0].id : null;
+  hookSel[it.id] = sel;
+  if(!sel) return '<div class="panel empty">Todavía no hay hooks para este video.</div>';
+  const chips = hs.map(h => '<button data-act="hookSel" data-a="' + h.id + '" aria-pressed="' + (sel === h.id) + '"><span class="dot" style="background:' + colorHook(h) + '"></span>H' + h.n + '</button>').join('')
+    + (LECTURA ? '' : '<button data-act="hookSel" data-a="nuevo" aria-pressed="' + (sel === 'nuevo') + '">+ Hook</button>');
+  const nav = '<div class="vers" role="group" aria-label="Hooks">' + chips + '</div>';
+  if(sel === 'nuevo') return '<div class="grid solo"><div>' + nav + formHook(it) + '</div></div>';
+  const h = hs.find(x => x.id === sel);
+  return '<div class="grid vert">'
+    + '<div class="vid-col">' + videoHtml(h.drive, true, 'Este hook todavía no tiene link de video.',
+        driveDescarga(h.driveHD) ? '<a class="btn sm" href="' + esc(driveDescarga(h.driveHD)) + '" target="_blank" rel="noopener">HD &#8595;</a>' : '')
+    + '</div>'
+    + '<div>' + nav + hookResumen(it, h) + linksHook(it, h) + hookDetalle(it, h) + '</div></div>';
+}
+
+function hookResumen(it, h){
+  const sirven = it.hooks.filter(x => x.estado === 'sirve').length;
+  const faltan = it.hooks.filter(x => !x.estado || x.estado === 'pendiente').length;
+  const total = it.hooks.length;
+  let t = '';
+  if(!total) t = '';
+  else if(faltan) t = faltan + (faltan === 1 ? ' hook sin revisar' : ' hooks sin revisar') + (sirven ? ' · ' + sirven + (sirven === 1 ? ' aprobado' : ' aprobados') : '') + '.';
+  else if(total === 1) t = sirven ? 'El hook está aprobado.' : 'El hook quedó marcado para cambiar.';
+  else if(!sirven) t = 'Ninguno de los ' + total + ' hooks quedó aprobado.';
+  else if(sirven === total) t = 'Los ' + total + ' hooks están aprobados.';
+  else t = sirven + ' de ' + total + ' hooks aprobados.';
+  return t ? '<p class="hint" style="margin:0 0 12px">' + esc(t) + '</p>' : '';
+}
+
+function linksHook(it, h){
+  if(LECTURA) return '';
+  const P = 'hooks.@' + h.id + '.';
+  const ver = u => driveVer(u) ? ' <a href="' + esc(driveVer(u)) + '" target="_blank" rel="noopener">Abrir</a>' : '';
+  return '<div class="links"><h4>Links del hook ' + h.n + '</h4><div class="row2">'
+    + '<label class="field" for="hk-' + h.id + '-r"><span>Video para revisión' + ver(h.drive) + '</span><input class="inp" id="hk-' + h.id + '-r" type="url" data-path="' + P + 'drive" value="' + esc(h.drive || '') + '" placeholder="https://drive.google.com/file/d/…"></label>'
+    + '<label class="field" for="hk-' + h.id + '-h"><span>Video en HD' + ver(h.driveHD) + '</span><input class="inp" id="hk-' + h.id + '-h" type="url" data-path="' + P + 'driveHD" value="' + esc(h.driveHD || '') + '" placeholder="El que Toni descarga para Edits"></label>'
+    + '</div></div>';
+}
+
+function hookDetalle(it, h){
+  const P = 'hooks.@' + h.id + '.';
+  const ed = !LECTURA;
+  const [cls, lab] = hookPill(h.estado);
+  const es = v => (h.estado || 'pendiente') === v;
+  return '<div class="panel"><div class="ver-head"><h3>Hook ' + h.n + '</h3><span class="' + cls + '">' + lab + '</span>'
+    + (ed ? '<button class="btn sm" data-act="hookQuitar" data-a="' + h.id + '" style="margin-left:auto">Quitar hook</button>' : '')
+    + '</div>'
+    + campoV(P + 'nota', 'Qué dice este inicio', h.nota, ed, 'El texto o la idea del hook, para distinguirlo de los otros', 'textarea', 2)
+    + '</div>'
+    + '<div class="panel"><h3>¿Sirve este hook?</h3><p class="hint">Marca los que se van a subir a Edits. Puedes aprobar varios.</p>'
+    + (ed ? '<div class="decide"><button class="btn no' + (es('cambiar') ? ' on' : '') + '" data-act="hookEstado" data-a="' + h.id + '" data-b="cambiar" aria-pressed="' + es('cambiar') + '">Cambiar</button>'
+          + '<button class="btn si' + (es('sirve') ? ' on' : '') + '" data-act="hookEstado" data-a="' + h.id + '" data-b="sirve" aria-pressed="' + es('sirve') + '">Sirve</button></div>' : '')
+    + campoV(P + 'comentario', 'Comentario', h.comentario, ed, 'Qué cambiarías de este inicio', 'textarea', 3)
+    + '</div>';
+}
+
+function formHook(it){
+  const n = it.hooks.reduce((m, h) => Math.max(m, Number(h.n) || 0), 0) + 1;
+  return '<div class="panel" id="form-hook"><h3>Agregar hook ' + n + '</h3>'
+    + '<p class="hint">Los primeros segundos alternativos. Sube cada inicio a Drive y pega aquí su link; Toni los revisa uno por uno y se lleva a Edits los que sirvan.</p>'
+    + '<label class="field"><span>Link de Drive del hook (para revisar)</span><input class="inp" id="nh-drive" type="url" placeholder="https://drive.google.com/file/d/…"></label>'
+    + '<label class="field"><span>Link de Drive en HD (opcional)</span><input class="inp" id="nh-hd" type="url" placeholder="El que Toni descarga para Edits"></label>'
+    + '<label class="field"><span>Qué dice este inicio</span><textarea class="inp" id="nh-nota" rows="2" placeholder="Para distinguirlo de los otros"></textarea></label>'
+    + '<div class="modal-actions"><span class="st" id="nh-st" style="margin-right:auto"></span><button class="btn primary" data-act="hookAgregar">Agregar hook ' + n + '</button></div>'
     + '</div>';
 }
 
@@ -1145,10 +1232,9 @@ function adjuntosPanel(it, seccion, titulo, hint){
 function verEstado(v){
   if(v.estado === 'aprobada') return '<span class="pill ok">Aprobada</span>';
   if(v.estado === 'cambios') return '<span class="pill flag">Cambios pedidos</span>';
-  if(v.estado === 'reemplazada') return '<span class="pill">Reemplazada</span>';
   return '<span class="pill wait">Por revisar</span>';
 }
-function colorVer(v){ return v.estado === 'aprobada' ? 'var(--ok)' : v.estado === 'cambios' ? 'var(--danger)' : v.estado === 'reemplazada' ? 'var(--muted, #8a8f98)' : 'var(--brass)'; }
+function colorVer(v){ return v.estado === 'aprobada' ? 'var(--ok)' : v.estado === 'cambios' ? 'var(--danger)' : 'var(--brass)'; }
 function lineaPill(s){
   if(s === 'aprobado') return ['pill ok', 'Aprobada'];
   if(s === 'cambio solicitado') return ['pill flag', 'Cambiar'];
@@ -1157,7 +1243,7 @@ function lineaPill(s){
 
 function tabVersiones(it){
   const vs = it.versiones;
-  const formNueva = (!vs.length || ultimaVersion(it).estado !== 'aprobada') && !LECTURA && !['publicar','publicado'].includes(it.estado);
+  const formNueva = (!vs.length || ultimaVersion(it).estado === 'cambios') && !LECTURA && !['publicar','publicado'].includes(it.estado);
   let sel = verSel[it.id];
   if(sel === 'nueva' && !formNueva) sel = null;
   if(sel !== 'nueva' && !vs.some(v => v.id === sel)) sel = vs.length ? vs[vs.length - 1].id : (formNueva ? 'nueva' : null);
@@ -1251,7 +1337,7 @@ function formVersion(it){
   const prev = ultimaVersion(it);
   const n = (prev ? prev.n : 0) + 1;
   const guionPrev = prev ? prev.scriptLines.map(l => (l.status === 'cambio solicitado' && (l.comment || '').trim()) ? l.comment.trim() : l.text).join('\n') : (it.instrucciones.guion || '');
-  return '<div class="panel" id="form-version"><h3>Subir V' + n + '</h3><p class="hint">' + (prev ? (prev.estado === 'cambios' ? 'Toni pidió cambios en la V' + prev.n + '. El guion y el copy ya traen lo de la versión anterior con sus correcciones.' : 'La V' + prev.n + ' sigue por revisar. Al enviar la V' + n + ', la V' + prev.n + ' queda como historial (Reemplazada). El guion y el copy ya traen lo de la V' + prev.n + '.') : 'La primera versión pasa el video a En revisión.') + '</p>'
+  return '<div class="panel" id="form-version"><h3>Subir V' + n + '</h3><p class="hint">' + (prev ? 'Toni pidió cambios en la V' + prev.n + '. El guion y el copy ya traen lo de la versión anterior con sus correcciones.' : 'La primera versión pasa el video a En revisión.') + '</p>'
     + '<label class="field"><span>Link de Drive del video (para revisar)</span><input class="inp" id="nv-drive" type="url" placeholder="https://drive.google.com/file/d/…"></label>'
     + '<label class="field"><span>Link de Drive en HD (opcional)</span><input class="inp" id="nv-hd" type="url" placeholder="https://drive.google.com/file/d/…"></label>'
     + '<label class="field"><span>Guion: sube el .srt de CapCut o escribe una línea por renglón</span><input class="inp" id="nv-srt" type="file" accept=".srt"><textarea class="inp" id="nv-guion" rows="5" style="margin-top:6px">' + esc(guionPrev) + '</textarea></label>'
@@ -1339,6 +1425,32 @@ const ACCIONES = {
   },
   irNuevaVersion(){ tab = 'versiones'; verSel[abierto] = 'nueva'; renderSheet(false); setTimeout(() => { const f = $('#nv-drive'); if(f) f.focus(); }, 30); },
   verSel(el){ verSel[abierto] = el.dataset.a; renderSheet(); },
+  hookSel(el){ hookSel[abierto] = el.dataset.a; renderSheet(false); },
+  hookAgregar(){
+    const it = itemPor(abierto);
+    const drive = $('#nh-drive').value.trim();
+    if(!drive){ estadoEn('nh-st', 'Falta el link de Drive del hook.', true); $('#nh-drive').focus(); return; }
+    const n = it.hooks.reduce((m, h) => Math.max(m, Number(h.n) || 0), 0) + 1;
+    const h = { id: uid('h'), n, drive, driveHD: $('#nh-hd').value.trim(), nota: $('#nh-nota').value.trim(),
+                estado:'pendiente', comentario:'', creado: new Date().toISOString() };
+    cambiar(it.id, [{ op:'push', path:'hooks', value: h }]);
+    hookSel[it.id] = h.id;
+    renderSheet(false); renderBoard();
+  },
+  hookEstado(el){
+    const it = itemPor(abierto); const h = it.hooks.find(x => x.id === el.dataset.a);
+    if(!h) return;
+    const valor = (h.estado || 'pendiente') === el.dataset.b ? 'pendiente' : el.dataset.b;
+    cambiar(it.id, [{ op:'set', path:'hooks.@' + h.id + '.estado', value: valor }]);
+    renderSheet();
+  },
+  hookQuitar(el){
+    const it = itemPor(abierto); const h = it.hooks.find(x => x.id === el.dataset.a);
+    if(!h || !confirm('¿Quitar el hook ' + h.n + '? Esto no borra el archivo de Drive.')) return;
+    cambiar(it.id, [{ op:'pull', path:'hooks', id: h.id }]);
+    hookSel[it.id] = null;
+    renderSheet(false); renderBoard();
+  },
   enviarVersion(){ enviarVersion(); },
   pedirCambios(el){
     const it = itemPor(abierto); const v = it.versiones.find(x => x.id === el.dataset.a);
@@ -1487,7 +1599,6 @@ function enviarVersion(){
   nvTiempos = [];
   verSel[it.id] = v.id;
   const ops = [{ op:'push', path:'versiones', value: v }];
-  if(prev && prev.estado === 'pendiente') ops.push({ op:'set', path:'versiones.@' + prev.id + '.estado', value:'reemplazada' });
   if(it.estado !== 'revision') moverA(it.id, 'revision', ops);
   else { cambiar(it.id, ops); renderSheet(false); renderBoard(); }
 }
@@ -1549,7 +1660,11 @@ async function subirArchivos(seccion, input){
 
 async function toggleGrabar(destino){
   if(rec){ if(rec.destino === destino) rec.mr.stop(); else alert('Ya hay una grabación en curso.'); return; }
-  const stId = destino.startsWith('adj:') ? 'st-adj-' + destino.slice(4) : 'st-aud-' + destino.slice(4);
+  const partes = destino.split(':');
+  const esAdj = partes[0] === 'adj';
+  const seccionAdj = esAdj ? partes[1] : '';
+  const esHook = esAdj && partes[2] === 'hook';
+  const stId = esAdj ? 'st-adj-' + seccionAdj : 'st-aud-' + partes[1];
   let stream;
   try{ stream = await navigator.mediaDevices.getUserMedia({ audio:true }); }
   catch(e){ estadoEn(stId, 'No se pudo usar el micrófono. Revisa los permisos del navegador para esta página.', true); return; }
@@ -1566,14 +1681,14 @@ async function toggleGrabar(destino){
     if(abierto === id) renderSheet();
     if(!blob.size){ estadoEn(stId, 'La grabación quedó vacía. Intenta de nuevo.', true); return; }
     const d = new Date();
-    const nombre = 'Audio ' + d.toLocaleDateString('es-MX') + ' ' + String(d.getHours()).padStart(2,'0') + 'h' + String(d.getMinutes()).padStart(2,'0') + '.' + ext;
-    estadoEn(stId, 'Subiendo audio…');
+    const nombre = (esHook ? 'Hook ' : 'Audio ') + d.toLocaleDateString('es-MX') + ' ' + String(d.getHours()).padStart(2,'0') + 'h' + String(d.getMinutes()).padStart(2,'0') + '.' + ext;
+    estadoEn(stId, esHook ? 'Subiendo hook…' : 'Subiendo audio…');
     try{
       const did = await subirADrive(blob, nombre);
-      if(destino.startsWith('adj:')) cambiar(id, [{ op:'push', path:'adjuntos', value:{ id: uid('a'), driveId: did, nombre, mime, tipo:'audio', tam: blob.size, seccion: destino.slice(4), creado: d.toISOString() } }]);
-      else cambiar(id, [{ op:'push', path:'versiones.@' + destino.slice(4) + '.audioNotes', value:{ id: uid('a'), driveId: did, nombre, creado: d.toISOString() } }]);
+      if(esAdj) cambiar(id, [{ op:'push', path:'adjuntos', value:{ id: uid('a'), driveId: did, nombre, mime, tipo:'audio', tam: blob.size, seccion: seccionAdj, hook: esHook || undefined, creado: d.toISOString() } }]);
+      else cambiar(id, [{ op:'push', path:'versiones.@' + partes[1] + '.audioNotes', value:{ id: uid('a'), driveId: did, nombre, creado: d.toISOString() } }]);
       if(abierto === id) renderSheet();
-      estadoEn(stId, 'Audio guardado');
+      estadoEn(stId, esHook ? 'Hook guardado' : 'Audio guardado');
     }catch(e){ console.error(e); estadoEn(stId, 'No se pudo subir el audio. Intenta de nuevo.', true); }
   };
   mr.start(1000);
