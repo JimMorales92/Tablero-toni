@@ -273,22 +273,10 @@ a{color:var(--brass-ink)}
 .frame iframe{display:block;width:100%;height:100%;border:0}
 .frame.h{aspect-ratio:16/9}
 /* galería de hooks: todos los inicios de un video, de un vistazo */
-.hooks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
-@media (max-width:640px){.hooks-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.hook-card .hc-acts{flex-direction:column}}
+.hooks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(164px,1fr));gap:16px}
 .hook-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
 .hook-card .frame{border-radius:0}
 .hook-card .frame.v{max-height:none}
-.hc-thumb{position:relative;display:block;width:100%;aspect-ratio:9/16;padding:0;border:0;background:#000;cursor:pointer;overflow:hidden}
-.hc-thumb img{display:block;width:100%;height:100%;object-fit:cover}
-.hc-thumb .hc-falla{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#cfd3da;font-size:13px;text-align:center;padding:12px}
-.hc-thumb.sin-img .hc-falla{display:flex}
-.hc-thumb.sin-img img{display:none}
-.hc-thumb .hc-play{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(10,13,18,.62);display:flex;align-items:center;justify-content:center;transition:transform .15s}
-.hc-thumb .hc-play::before{content:"";border-style:solid;border-width:10px 0 10px 17px;border-color:transparent transparent transparent #fff;margin-left:4px}
-.hc-thumb:hover .hc-play,.hc-thumb:focus-visible .hc-play{transform:scale(1.08)}
-.hc-thumb .hc-n{position:absolute;left:8px;top:8px;background:rgba(10,13,18,.62);color:#fff;font-weight:700;font-size:12.5px;padding:3px 8px;border-radius:999px}
-.hook-nav{display:flex;gap:8px;margin:12px 0 0}
-.hook-nav .btn{flex:1;justify-content:center}
 .hook-card .hc-vacio{aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;background:var(--surface-3);color:var(--faint);font-size:12.5px}
 .hook-card .hc-body{padding:10px;display:flex;flex-direction:column;gap:7px;flex:1}
 .hook-card .hc-top{display:flex;align-items:center;gap:7px}
@@ -297,6 +285,17 @@ a{color:var(--brass-ink)}
 .hook-card .hc-acts{display:flex;gap:6px;margin-top:auto}
 .hook-card .hc-acts .btn{flex:1;justify-content:center;text-align:center;padding:5px 8px;font-size:12.5px}
 .hooks-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+/* entrega final: un video por hook, cada uno con su caption */
+.entrega{display:flex;gap:16px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;box-shadow:var(--shadow)}
+.entrega .frame{width:148px;flex:0 0 148px}
+.entrega .frame.v{max-height:none}
+.entrega .ent-vacio{width:148px;flex:0 0 148px;aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;background:var(--surface-3);color:var(--faint);font-size:12.5px;border-radius:var(--radius)}
+.entrega .ent-body{flex:1;min-width:0}
+.entrega .ent-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.entrega .ent-top b{font-family:var(--display);font-size:16px}
+.entrega .ent-acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.entrega .field{margin-bottom:0}
+@media (max-width:860px){ .entrega{flex-direction:column} .entrega .frame,.entrega .ent-vacio{width:100%;max-width:200px;flex:none} .entrega .ent-acts{margin-left:0;width:100%} }
 .hooks-bar .hint{margin:0}
 .frame.v{aspect-ratio:9/16;width:100%;height:auto;max-height:var(--vmax)}
 /* el video vertical y su barra de botones, que va encima para no robarle alto */
@@ -578,6 +577,7 @@ function normalizar(it){
   it.adjuntos = Array.isArray(it.adjuntos) ? it.adjuntos : []; it.fechas = it.fechas || {};
   it.versiones = Array.isArray(it.versiones) ? it.versiones : []; it.publicacion = it.publicacion || {};
   it.hooks = Array.isArray(it.hooks) ? it.hooks : [];
+  it.entregas = Array.isArray(it.entregas) ? it.entregas : [];
   it.publicado = it.publicado || {}; it.archivado = it.archivado || {}; it.historial = it.historial || [];
   it.versiones.forEach(v => {
     v.scriptLines = Array.isArray(v.scriptLines) ? v.scriptLines : [];
@@ -930,7 +930,7 @@ const TABS = [
   { k:'instrucciones', n:'Instrucciones' },
   { k:'versiones', n:'Versiones' },
   { k:'hooks', n:'Hooks' },
-  { k:'publicacion', n:'Publicación' }
+  { k:'publicacion', n:'Entrega final' }
 ];
 function tabPorDefecto(it){
   return ({ seleccion:'momento', instrucciones:'instrucciones', listo:'instrucciones', edicion:'versiones', revision:'versiones', publicar:'publicacion', publicado:'publicacion', archivado:'momento' })[it.estado] || 'momento';
@@ -1008,7 +1008,7 @@ function nextHtml(it){
 }
 
 function tabsHtml(it){
-  const n = { versiones: it.versiones.length || '', hooks: it.hooks.length || '', momento: '', instrucciones: '', publicacion: '' };
+  const n = { versiones: it.versiones.length || '', hooks: it.hooks.length || '', momento: '', instrucciones: '', publicacion: it.entregas.length || '' };
   return '<div class="tabs" role="tablist">' + TABS.map(t =>
     '<button role="tab" aria-selected="' + (tab === t.k) + '" data-act="tab" data-a="' + t.k + '">' + t.n + (n[t.k] ? '<span class="n">' + n[t.k] + '</span>' : '') + '</button>'
   ).join('') + '</div>';
@@ -1203,11 +1203,11 @@ function tabHooks(it){
     + '<div class="vid-col">' + videoHtml(h.drive, true, 'Este hook todavía no tiene link de video.',
         hookDescarga(h) ? '<a class="btn sm" href="' + esc(hookDescarga(h)) + '" target="_blank" rel="noopener">HD &#8595;</a>' : '')
     + '</div>'
-    + '<div>' + nav + hookResumen(it, h) + linksHook(it, h) + hookDetalle(it, h) + hookNav(hs, h) + '</div></div>';
+    + '<div>' + nav + hookResumen(it, h) + linksHook(it, h) + hookDetalle(it, h) + '</div></div>';
 }
 
 /* Todos los hooks a la vez, con su descarga. Lo que Toni necesita para armar el reel en Edits. */
-/* Se descarga siempre el HD: es lo que Toni mete a Edits. Sin link HD no hay descarga. */
+/* Descargar siempre el HD: es lo que Toni mete a Edits. Sin link HD no hay descarga. */
 function hookDescarga(h){ return driveDescarga(h.driveHD); }
 
 function galeriaHooks(it){
@@ -1215,39 +1215,23 @@ function galeriaHooks(it){
   const conLink = hs.filter(h => hookDescarga(h));
   const tarjetas = hs.map(h => {
     const [cls, lab] = hookPill(h.estado);
-    const th = driveThumb(h.drive);
+    const emb = driveEmbed(h.drive);
     const dl = hookDescarga(h);
-    /* Miniatura en vez del reproductor de Drive: incrustado en una tarjeta angosta se recorta.
-       Al tocarla se abre el hook en el reproductor grande, donde sí se revisa bien. */
     return '<div class="hook-card">'
-      + (th ? '<button class="hc-thumb" data-act="hookSel" data-a="' + h.id + '" aria-label="Ver el hook ' + h.n + ' en grande">'
-              + '<img src="' + esc(th) + '" alt="" loading="lazy" onerror="this.parentNode.classList.add(\'sin-img\')">'
-              + '<span class="hc-falla">Toca para ver el hook ' + h.n + '</span>'
-              + '<span class="hc-n">H' + h.n + '</span><span class="hc-play" aria-hidden="true"></span></button>'
-            : '<div class="hc-vacio">Sin link de video</div>')
+      + (emb ? '<div class="frame v"><iframe src="' + esc(emb) + '" allow="fullscreen" allowfullscreen title="Hook ' + h.n + '"></iframe></div>'
+             : '<div class="hc-vacio">Sin link de video</div>')
       + '<div class="hc-body"><div class="hc-top"><b>H' + h.n + '</b><span class="' + cls + '">' + lab + '</span></div>'
       + (h.nota ? '<div class="hc-nota">' + esc(h.nota) + '</div>' : '')
       + '<div class="hc-acts"><button class="btn sm" data-act="hookSel" data-a="' + h.id + '">Revisar</button>'
-      + (dl ? '<a class="btn sm" href="' + esc(dl) + '" target="_blank" rel="noopener">HD &#8595;</a>' : '<span class="btn sm" style="opacity:.45;cursor:default" title="Pega el link de Drive en HD para poder descargarlo">Sin HD</span>')
+      + (dl ? '<a class="btn sm" href="' + esc(dl) + '" target="_blank" rel="noopener">HD &#8595;</a>' : '<span class="btn sm" style="flex:1;text-align:center;opacity:.45;cursor:default" title="Pega el link de Drive en HD para poder descargarlo">Sin HD</span>')
       + '</div></div></div>';
   }).join('');
   const sinHD = hs.length - conLink.length;
   const barra = '<div class="hooks-bar">'
-    + (conLink.length ? '<button class="btn brass" data-act="hooksBajarTodos">Descargar ' + (sinHD ? conLink.length + (conLink.length === 1 ? ' hook' : ' hooks') : 'los ' + conLink.length + ' hooks') + ' en HD</button>' : '')
-    + '<span class="hint">' + esc(sinHD ? hookResumenTexto(it).replace(/\.$/, '') + ' · ' + sinHD + ' sin link HD.' : hookResumenTexto(it)) + '</span>'
+    + (conLink.length ? '<button class="btn brass" data-act="hooksBajarTodos">Descargar ' + (conLink.length === hs.length ? 'los ' + conLink.length + ' hooks' : conLink.length + (conLink.length === 1 ? ' hook' : ' hooks')) + ' en HD</button>' : '')
+    + '<span class="hint">' + esc(hookResumenTexto(it)) + (sinHD ? ' · ' + sinHD + (sinHD === 1 ? ' sin link HD' : ' sin link HD') : '') + '</span>'
     + '<span class="st" id="st-hooks" role="status"></span></div>';
   return barra + (tarjetas ? '<div class="hooks-grid">' + tarjetas + '</div>' : '<div class="panel empty">Todavía no hay hooks.</div>');
-}
-
-function hookNav(hs, h){
-  const i = hs.indexOf(h);
-  const ant = hs[i - 1], sig = hs[i + 1];
-  if(!ant && !sig) return '';
-  return '<div class="hook-nav">'
-    + (ant ? '<button class="btn" data-act="hookSel" data-a="' + ant.id + '">&#8592; H' + ant.n + '</button>' : '')
-    + '<button class="btn" data-act="hookSel" data-a="todos">Todos</button>'
-    + (sig ? '<button class="btn" data-act="hookSel" data-a="' + sig.id + '">H' + sig.n + ' &#8594;</button>' : '')
-    + '</div>';
 }
 
 function hookResumen(it, h){
@@ -1275,7 +1259,7 @@ function linksHook(it, h){
   const ver = u => driveVer(u) ? ' <a href="' + esc(driveVer(u)) + '" target="_blank" rel="noopener">Abrir</a>' : '';
   return '<div class="links"><h4>Links del hook ' + h.n + '</h4><div class="row2">'
     + '<label class="field" for="hk-' + h.id + '-r"><span>Video para revisión' + ver(h.drive) + '</span><input class="inp" id="hk-' + h.id + '-r" type="url" data-path="' + P + 'drive" value="' + esc(h.drive || '') + '" placeholder="https://drive.google.com/file/d/…"></label>'
-    + '<label class="field" for="hk-' + h.id + '-h"><span>Video en HD' + ver(h.driveHD) + '</span><input class="inp" id="hk-' + h.id + '-h" type="url" data-path="' + P + 'driveHD" value="' + esc(h.driveHD || '') + '" placeholder="El que Toni descarga para Edits"></label>'
+    + '<label class="field" for="hk-' + h.id + '-h"><span>Video en HD · es el que se descarga' + ver(h.driveHD) + '</span><input class="inp" id="hk-' + h.id + '-h" type="url" data-path="' + P + 'driveHD" value="' + esc(h.driveHD || '') + '" placeholder="Sin este link el hook no se puede descargar"></label>'
     + '</div></div>';
 }
 
@@ -1429,32 +1413,93 @@ function formVersion(it){
 /* ---------- pestaña Publicación ---------- */
 function tabPublicacion(it){
   const v = versionAprobada(it) || ultimaVersion(it);
-  const hd = v && (v.driveHD || v.drive);
-  const pub = it.estado === 'publicado';
-  const listo = it.estado === 'publicar' || pub;
-  return '<div class="grid vert">'
-    + '<div class="vid-col">' + videoHtml(v && v.drive, true, 'Todavía no hay una versión aprobada.',
-        hd ? '<a class="btn sm brass" href="' + esc(driveDescarga(hd)) + '" target="_blank" rel="noopener" data-act="descargaHD">' + (it.descargadoHD ? 'Otra vez &#8595;' : (v.driveHD ? 'HD &#8595;' : 'Descargar &#8595;')) + '</a>' : '')
-    + '</div>'
-    + '<div>'
-    + (listo ? '' : '<p class="historico">Esta sección se llena cuando el video ya está aprobado. Puedes adelantar datos si quieres.</p>')
+  const listo = it.estado === 'publicar' || it.estado === 'publicado';
+  return '<div>'
+    + (listo ? '' : '<p class="historico">Esta sección se llena cuando el cuerpo ya está aprobado. Puedes adelantar datos si quieres.</p>')
+    + cuerpoAprobado(it, v)
+    + listaEntregas(it)
     + '<datalist id="plataformas">' + PLATAFORMAS.map(p => '<option value="' + p + '">').join('') + '</datalist>'
-    + '<div class="panel"><h3>Datos para publicar</h3>'
+    + '<div class="panel"><h3>Datos para publicar</h3><p class="hint">Lo que es igual para todas las versiones. El texto de cada una va en su caption, arriba.</p>'
     + '<div class="row2">' + campo(it, 'publicacion.plataforma', 'Plataforma', { tipo:'text', list:'plataformas', ph:'Instagram' }) + campo(it, 'publicacion.fecha', 'Fecha prevista de publicación', { tipo:'date' }) + '</div>'
-    + '<div class="sec-head"><span></span>' + (LECTURA ? '' : '<button class="btn sm" data-act="copiarCopy">Copiar copy</button>') + '</div>'
-    + campo(it, 'publicacion.copy', 'Copy o título', { rows:4 })
-    + campo(it, 'publicacion.descripcion', 'Descripción', { rows:3 })
-    + campo(it, 'publicacion.hashtags', 'Hashtags', { ph:'#jazz #saxofon' })
     + campo(it, 'publicacion.miniatura', 'Miniatura (link)', { tipo:'url', ph:'Link de Drive de la portada' })
     + campo(it, 'publicacion.otros', 'Cualquier otro elemento necesario para publicar', { rows:2 })
     + '</div>'
     + '<div class="panel" style="--c:var(--s-publicado)"><h3>Publicado</h3><p class="hint">El histórico para consultar fácilmente todo lo que ya salió.</p>'
     + campo(it, 'publicado.enlace', 'Enlace a la publicación', { tipo:'url', ph:'https://www.instagram.com/reel/…' })
     + '<div class="row2">' + campo(it, 'publicado.fecha', 'Fecha de publicación', { tipo:'date' }) + campo(it, 'publicado.plataforma', 'Plataforma', { tipo:'text', list:'plataformas' }) + '</div>'
-    + campo(it, 'publicado.videoFinal', 'Video final (link)', { tipo:'url' })
     + '</div>'
     + (it.estado === 'publicar' && !LECTURA ? '<button class="btn ghost sm" data-act="regresarRevision">Regresar a En revisión</button>' : '')
+    + '</div>';
+}
+
+/* El cuerpo del que salen todas las entregas, como referencia */
+function cuerpoAprobado(it, v){
+  if(!v) return '';
+  const hd = v.driveHD || v.drive;
+  return '<p class="hint" style="margin:0 0 14px">Cuerpo aprobado: <strong>V' + v.n + '</strong>'
+    + (driveVer(v.drive) ? ' · <a href="' + esc(driveVer(v.drive)) + '" target="_blank" rel="noopener">Ver</a>' : '')
+    + (driveDescarga(hd) ? ' · <a href="' + esc(driveDescarga(hd)) + '" target="_blank" rel="noopener">Descargar</a>' : '')
+    + '</p>';
+}
+
+function nombreEntrega(it, e){
+  const h = it.hooks.find(x => x.id === e.hookId);
+  return h ? 'Final con H' + h.n : 'Final ' + e.n;
+}
+
+function listaEntregas(it){
+  const es = it.entregas;
+  const conHD = es.filter(e => driveDescarga(e.driveHD));
+  const sinHD = es.length - conHD.length;
+  const barra = '<div class="hooks-bar">'
+    + (conHD.length ? '<button class="btn brass" data-act="entregasBajarTodas">Descargar ' + (conHD.length === es.length ? 'las ' + conHD.length : conHD.length) + ' en HD</button>' : '')
+    + '<span class="hint">' + (es.length ? es.length + (es.length === 1 ? ' versión final' : ' versiones finales') + (sinHD ? ' · ' + sinHD + ' sin link HD' : '') : 'Todavía no hay versiones finales.') + '</span>'
+    + '<span class="st" id="st-entregas" role="status"></span></div>';
+  const filas = es.map(e => filaEntrega(it, e)).join('');
+  return '<div class="panel"><h3>Versiones finales</h3>'
+    + '<p class="hint">El cuerpo ya editado con cada hook, listo para subir a Reels. Cada una con su caption.</p>'
+    + barra + filas + (LECTURA ? '' : formEntrega(it)) + '</div>';
+}
+
+function filaEntrega(it, e){
+  const P = 'entregas.@' + e.id + '.';
+  const ed = !LECTURA;
+  const emb = driveEmbed(e.drive);
+  const dl = driveDescarga(e.driveHD);
+  return '<div class="entrega">'
+    + (emb ? '<div class="frame v"><iframe src="' + esc(emb) + '" allow="fullscreen" allowfullscreen title="' + esc(nombreEntrega(it, e)) + '"></iframe></div>'
+           : '<div class="ent-vacio">Sin link de video</div>')
+    + '<div class="ent-body"><div class="ent-top"><b>' + esc(nombreEntrega(it, e)) + '</b>'
+    + '<div class="ent-acts">'
+    + (ed ? '<button class="btn sm" data-act="copiarCaption" data-a="' + e.id + '">Copiar caption</button>' : '')
+    + (dl ? '<a class="btn sm" href="' + esc(dl) + '" target="_blank" rel="noopener">HD &#8595;</a>'
+          : '<span class="btn sm" style="opacity:.45;cursor:default" title="Pega el link de Drive en HD para poder descargarlo">Sin HD</span>')
+    + (ed ? '<button class="btn sm" data-act="entregaQuitar" data-a="' + e.id + '">Quitar</button>' : '')
+    + '</div></div>'
+    + (ed ? '<div class="row2">'
+        + campoV(P + 'drive', 'Link de Drive (para ver)', e.drive, ed, 'https://drive.google.com/file/d/…', 'url')
+        + campoV(P + 'driveHD', 'Link de Drive en HD · es el que se descarga', e.driveHD, ed, 'Sin este link no se puede descargar', 'url')
+        + '</div>' : '')
+    + campoV(P + 'caption', 'Caption', e.caption, ed, 'El texto que va en el reel, con sus hashtags', 'textarea', 5)
     + '</div></div>';
+}
+
+function formEntrega(it){
+  const n = it.entregas.reduce((m, e) => Math.max(m, Number(e.n) || 0), 0) + 1;
+  const usados = it.entregas.map(e => e.hookId);
+  const libres = it.hooks.filter(h => !usados.includes(h.id));
+  const opciones = '<option value="">Sin hook asignado</option>'
+    + libres.map(h => '<option value="' + h.id + '">H' + h.n + (h.nota ? ' · ' + esc(h.nota.slice(0, 40)) : '') + '</option>').join('');
+  const base = it.entregas.length ? '' : [it.publicacion.copy, it.publicacion.hashtags].filter(x => (x || '').trim()).join('\n\n');
+  return '<div class="links" id="form-entrega"><h4>Agregar versión final ' + n + '</h4>'
+    + '<div class="row2">'
+    + '<label class="field" for="ne-hook"><span>¿Qué hook lleva?</span><select class="inp" id="ne-hook">' + opciones + '</select></label>'
+    + '<label class="field" for="ne-drive"><span>Link de Drive (para ver)</span><input class="inp" id="ne-drive" type="url" placeholder="https://drive.google.com/file/d/…"></label>'
+    + '</div>'
+    + '<label class="field" for="ne-hd"><span>Link de Drive en HD · es el que se descarga</span><input class="inp" id="ne-hd" type="url" placeholder="Sin este link no se puede descargar"></label>'
+    + '<label class="field" for="ne-caption"><span>Caption</span><textarea class="inp" id="ne-caption" rows="4" placeholder="El texto que va en el reel, con sus hashtags">' + esc(base) + '</textarea></label>'
+    + '<div class="modal-actions"><span class="st" id="ne-st" style="margin-right:auto"></span><button class="btn primary" data-act="entregaAgregar">Agregar versión final ' + n + '</button></div>'
+    + '</div>';
 }
 
 /* =========================================================
@@ -1505,11 +1550,48 @@ const ACCIONES = {
   irNuevaVersion(){ tab = 'versiones'; verSel[abierto] = 'nueva'; renderSheet(false); setTimeout(() => { const f = $('#nv-drive'); if(f) f.focus(); }, 30); },
   verSel(el){ verSel[abierto] = el.dataset.a; renderSheet(); },
   hookSel(el){ hookSel[abierto] = el.dataset.a; renderSheet(false); },
+  entregaAgregar(){
+    const it = itemPor(abierto);
+    const drive = $('#ne-drive').value.trim();
+    const hd = $('#ne-hd').value.trim();
+    if(!drive && !hd){ estadoEn('ne-st', 'Falta al menos un link de Drive.', true); $('#ne-drive').focus(); return; }
+    const n = it.entregas.reduce((m, e) => Math.max(m, Number(e.n) || 0), 0) + 1;
+    const e = { id: uid('e'), n, hookId: $('#ne-hook').value || '', drive, driveHD: hd,
+                caption: $('#ne-caption').value.trim(), creado: new Date().toISOString() };
+    cambiar(it.id, [{ op:'push', path:'entregas', value: e }]);
+    renderSheet(false); renderBoard();
+  },
+  entregaQuitar(el){
+    const it = itemPor(abierto); const e = it.entregas.find(x => x.id === el.dataset.a);
+    if(!e || !confirm('¿Quitar "' + nombreEntrega(it, e) + '"? Esto no borra el archivo de Drive.')) return;
+    cambiar(it.id, [{ op:'pull', path:'entregas', id: e.id }]);
+    renderSheet(false); renderBoard();
+  },
+  entregasBajarTodas(){
+    const it = itemPor(abierto);
+    const links = it.entregas.map(e => driveDescarga(e.driveHD)).filter(Boolean);
+    if(!links.length) return;
+    estadoEn('st-entregas', 'Pidiendo ' + links.length + (links.length === 1 ? ' descarga en HD…' : ' descargas en HD…'));
+    links.forEach((u, i) => setTimeout(() => {
+      const f = document.createElement('iframe');
+      f.style.display = 'none'; f.src = u;
+      document.body.appendChild(f);
+      setTimeout(() => f.remove(), 90000);
+      if(i === links.length - 1) estadoEn('st-entregas', 'Listo. Si el navegador pregunta, permite las descargas múltiples.');
+    }, i * 900));
+  },
+  copiarCaption(el){
+    const it = itemPor(abierto); const e = it.entregas.find(x => x.id === el.dataset.a);
+    if(!e) return;
+    navigator.clipboard.writeText(e.caption || '').then(
+      () => { el.textContent = 'Copiado'; setTimeout(() => el.textContent = 'Copiar caption', 1600); },
+      () => alert('No se pudo copiar. Selecciona el texto a mano.'));
+  },
   hooksBajarTodos(){
     const it = itemPor(abierto);
     const links = it.hooks.map(hookDescarga).filter(Boolean);
     if(!links.length) return;
-    estadoEn('st-hooks', 'Pidiendo ' + links.length + (links.length === 1 ? ' descarga…' : ' descargas…'));
+    estadoEn('st-hooks', 'Pidiendo ' + links.length + (links.length === 1 ? ' descarga en HD…' : ' descargas en HD…'));
     links.forEach((u, i) => setTimeout(() => {
       const f = document.createElement('iframe');
       f.style.display = 'none'; f.src = u;
