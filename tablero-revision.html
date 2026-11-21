@@ -272,6 +272,10 @@ a{color:var(--brass-ink)}
 .frame{background:#000;border-radius:var(--radius);overflow:hidden;position:relative}
 .frame iframe{display:block;width:100%;height:100%;border:0}
 .frame.h{aspect-ratio:16/9}
+/* El reproductor de Drive tiene ancho mínimo propio: en una miniatura angosta se
+   desborda y se ve cortado. Se dibuja a 400px y se reduce con escala. */
+.mini{position:relative;aspect-ratio:9/16;overflow:hidden;background:#000;border-radius:var(--radius)}
+.mini iframe{position:absolute;top:0;left:0;width:400px;height:711px;border:0;transform-origin:top left;transform:scale(.37)}
 /* galería de hooks: todos los inicios de un video, de un vistazo */
 .hooks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(164px,1fr));gap:16px}
 .hook-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
@@ -287,15 +291,14 @@ a{color:var(--brass-ink)}
 .hooks-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
 /* entrega final: un video por hook, cada uno con su caption */
 .entrega{display:flex;gap:16px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;box-shadow:var(--shadow)}
-.entrega .frame{width:148px;flex:0 0 148px}
-.entrega .frame.v{max-height:none}
-.entrega .ent-vacio{width:148px;flex:0 0 148px;aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;background:var(--surface-3);color:var(--faint);font-size:12.5px;border-radius:var(--radius)}
+.entrega .ent-mini{width:170px;flex:0 0 170px}
+.entrega .ent-vacio,.entrega .hc-vacio{aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;background:var(--surface-3);color:var(--faint);font-size:12.5px;border-radius:var(--radius)}
 .entrega .ent-body{flex:1;min-width:0}
 .entrega .ent-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .entrega .ent-top b{font-family:var(--display);font-size:16px}
 .entrega .ent-acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 .entrega .field{margin-bottom:0}
-@media (max-width:860px){ .entrega{flex-direction:column} .entrega .frame,.entrega .ent-vacio{width:100%;max-width:200px;flex:none} .entrega .ent-acts{margin-left:0;width:100%} }
+@media (max-width:860px){ .entrega{flex-direction:column} .entrega .ent-mini{width:100%;max-width:200px;flex:none} .entrega .ent-acts{margin-left:0;width:100%} }
 .hooks-bar .hint{margin:0}
 .frame.v{aspect-ratio:9/16;width:100%;height:auto;max-height:var(--vmax)}
 /* el video vertical y su barra de botones, que va encima para no robarle alto */
@@ -1048,6 +1051,7 @@ function renderSheet(conservarScroll){
   if(body) body.scrollTop = scroll;
   if(LECTURA) root.querySelectorAll('.inp, textarea').forEach(x => { x.readOnly = true; if(x.tagName === 'SELECT') x.disabled = true; });
   ajustarAltoVideo();
+  ajustarMinis();
 }
 
 /* El video vertical ocupa todo el alto libre de la ventana: se mide lo que ocupan
@@ -1071,7 +1075,7 @@ function ajustarAltoVideo(){
   if(wrap && !angosto) poner();   // el ancho de la columna cambia: se vuelve a medir ya asentado
 }
 let avTimer;
-window.addEventListener('resize', () => { clearTimeout(avTimer); avTimer = setTimeout(ajustarAltoVideo, 150); });
+window.addEventListener('resize', () => { clearTimeout(avTimer); avTimer = setTimeout(() => { ajustarAltoVideo(); ajustarMinis(); }, 150); });
 
 function cuerpoTab(it){
   if(tab === 'instrucciones') return tabInstrucciones(it);
@@ -1210,16 +1214,30 @@ function tabHooks(it){
 /* Descargar siempre el HD: es lo que Toni mete a Edits. Sin link HD no hay descarga. */
 function hookDescarga(h){ return driveDescarga(h.driveHD); }
 
+/* Miniatura vertical que no se corta, por angosta que sea la columna. */
+function miniVideo(url, titulo, vacio){
+  const emb = driveEmbed(url);
+  if(!emb) return '<div class="hc-vacio">' + esc(vacio || 'Sin link de video') + '</div>';
+  return '<div class="mini"><iframe src="' + esc(emb) + '" allow="fullscreen" allowfullscreen title="' + esc(titulo) + '"></iframe></div>';
+}
+
+/* La escala depende del ancho real de cada miniatura, así que se mide después de pintar. */
+function ajustarMinis(){
+  document.querySelectorAll('.mini').forEach(m => {
+    const f = m.querySelector('iframe'); if(!f) return;
+    const k = m.clientWidth / 400;
+    if(k > 0) f.style.transform = 'scale(' + k.toFixed(4) + ')';
+  });
+}
+
 function galeriaHooks(it){
   const hs = it.hooks;
   const conLink = hs.filter(h => hookDescarga(h));
   const tarjetas = hs.map(h => {
     const [cls, lab] = hookPill(h.estado);
-    const emb = driveEmbed(h.drive);
     const dl = hookDescarga(h);
     return '<div class="hook-card">'
-      + (emb ? '<div class="frame v"><iframe src="' + esc(emb) + '" allow="fullscreen" allowfullscreen title="Hook ' + h.n + '"></iframe></div>'
-             : '<div class="hc-vacio">Sin link de video</div>')
+      + miniVideo(h.drive, 'Hook ' + h.n)
       + '<div class="hc-body"><div class="hc-top"><b>H' + h.n + '</b><span class="' + cls + '">' + lab + '</span></div>'
       + (h.nota ? '<div class="hc-nota">' + esc(h.nota) + '</div>' : '')
       + '<div class="hc-acts"><button class="btn sm" data-act="hookSel" data-a="' + h.id + '">Revisar</button>'
@@ -1464,11 +1482,9 @@ function listaEntregas(it){
 function filaEntrega(it, e){
   const P = 'entregas.@' + e.id + '.';
   const ed = !LECTURA;
-  const emb = driveEmbed(e.drive);
   const dl = driveDescarga(e.driveHD);
   return '<div class="entrega">'
-    + (emb ? '<div class="frame v"><iframe src="' + esc(emb) + '" allow="fullscreen" allowfullscreen title="' + esc(nombreEntrega(it, e)) + '"></iframe></div>'
-           : '<div class="ent-vacio">Sin link de video</div>')
+    + '<div class="ent-mini">' + miniVideo(e.drive, nombreEntrega(it, e)) + '</div>'
     + '<div class="ent-body"><div class="ent-top"><b>' + esc(nombreEntrega(it, e)) + '</b>'
     + '<div class="ent-acts">'
     + (ed ? '<button class="btn sm" data-act="copiarCaption" data-a="' + e.id + '">Copiar caption</button>' : '')
